@@ -1,3 +1,0 @@
-import McDuckCore
-
-print("McDuck")
