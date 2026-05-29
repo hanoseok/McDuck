@@ -1,0 +1,6 @@
+.superpowers/
+.build/
+dist/
+DerivedData/
+*.xcuserstate
+*.xcuserdata/
