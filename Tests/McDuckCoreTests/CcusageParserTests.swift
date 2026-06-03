@@ -127,6 +127,46 @@ struct CcusageParserTests {
         #expect(report.days[0].models == ["claude-opus-4-1-20250805"])
     }
 
+    @Test("parses multi-agent output that uses 'period' as the day field")
+    func parsesPeriodDayField() throws {
+        let json = """
+        {
+          "daily": [
+            {
+              "agent": "all",
+              "period": "2025-09-14",
+              "cacheCreationTokens": 0,
+              "cacheReadTokens": 5455946,
+              "inputTokens": 2517726,
+              "outputTokens": 54169,
+              "totalTokens": 8082906,
+              "totalCost": 8.5931729,
+              "modelsUsed": ["gemini-2.5-flash", "gemini-2.5-pro"],
+              "modelBreakdowns": [
+                {
+                  "modelName": "gemini-2.5-pro",
+                  "inputTokens": 2455463,
+                  "outputTokens": 53740,
+                  "cacheCreationTokens": 0,
+                  "cacheReadTokens": 5455946,
+                  "cost": 8.567664
+                }
+              ]
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let report = try CcusageParser().parseDailyJSON(json)
+
+        #expect(report.days.map(\.dateString) == ["2025-09-14"])
+        #expect(report.days[0].totalTokens == 8_082_906)
+        #expect(report.days[0].costUSD == 8.5931729)
+        #expect(report.days[0].models == ["gemini-2.5-flash", "gemini-2.5-pro"])
+        #expect(report.days[0].breakdown["gemini-2.5-pro"]?.outputTokens == 53_740)
+        #expect(report.days[0].breakdown["gemini-2.5-pro"]?.costUSD == 8.567664)
+    }
+
     @Test("skips entries without a usable date instead of failing")
     func skipsDatelessEntries() throws {
         let json = """

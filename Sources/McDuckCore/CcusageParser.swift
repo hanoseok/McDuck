@@ -41,7 +41,8 @@ public struct CcusageParser: Sendable {
         // Skip entries without a usable date (e.g. aggregate rows) rather than
         // failing the whole report.
         let days = rawDays.compactMap { raw -> UsageDay? in
-            guard let dateString = raw.date, DateOnly.parse(dateString) != nil else {
+            // Newer ccusage names the day field `period`; older output uses `date`.
+            guard let dateString = raw.date ?? raw.period, DateOnly.parse(dateString) != nil else {
                 return nil
             }
 
@@ -126,6 +127,7 @@ private struct RawPayload: Decodable {
 
 private struct RawDay: Decodable {
     var date: String?
+    var period: String?
     var models: [String]?
     var modelsUsed: [String]?
     var inputTokens: Int?
