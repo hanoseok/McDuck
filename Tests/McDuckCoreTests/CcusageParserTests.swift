@@ -89,4 +89,73 @@ struct CcusageParserTests {
         #expect(report.summary.inputTokens == 200)
         #expect(report.summary.totalCostUSD == 1.25)
     }
+
+    @Test("parses modelBreakdowns array from --breakdown output")
+    func parsesModelBreakdownsArray() throws {
+        let json = """
+        {
+          "daily": [
+            {
+              "date": "2026-05-22",
+              "modelsUsed": ["claude-opus-4-1-20250805"],
+              "inputTokens": 100,
+              "outputTokens": 200,
+              "totalTokens": 300,
+              "totalCost": 3.50,
+              "modelBreakdowns": [
+                {
+                  "modelName": "claude-opus-4-1-20250805",
+                  "inputTokens": 100,
+                  "outputTokens": 200,
+                  "cacheCreationTokens": 10,
+                  "cacheReadTokens": 20,
+                  "totalTokens": 300,
+                  "cost": 3.50
+                }
+              ]
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let report = try CcusageParser().parseDailyJSON(json)
+
+        #expect(report.days.count == 1)
+        let breakdown = report.days[0].breakdown["claude-opus-4-1-20250805"]
+        #expect(breakdown?.outputTokens == 200)
+        #expect(breakdown?.costUSD == 3.50)
+        #expect(report.days[0].models == ["claude-opus-4-1-20250805"])
+    }
+
+    @Test("skips entries without a usable date instead of failing")
+    func skipsDatelessEntries() throws {
+        let json = """
+        {
+          "daily": [
+            { "inputTokens": 5, "outputTokens": 5, "totalTokens": 10, "totalCost": 0.01 },
+            {
+              "date": "2026-05-23",
+              "inputTokens": 50,
+              "outputTokens": 60,
+              "totalTokens": 110,
+              "totalCost": 0.5
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let report = try CcusageParser().parseDailyJSON(json)
+
+        #expect(report.days.map(\.dateString) == ["2026-05-23"])
+        #expect(report.days[0].totalTokens == 110)
+    }
+
+    @Test("throws a readable error for malformed output")
+    func throwsReadableErrorForMalformedOutput() throws {
+        let json = Data("not json at all".utf8)
+
+        #expect(throws: CcusageParseError.self) {
+            try CcusageParser().parseDailyJSON(json)
+        }
+    }
 }
