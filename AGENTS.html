@@ -156,15 +156,19 @@ scripts/build-app.sh</code></pre>
 
     <div class="section">
       <h2>릴리스와 버저닝</h2>
-      <p>버전 태그를 push 하면 <code>.github/workflows/release.yml</code>이 macOS 러너에서 앱을 빌드해 GitHub Release로 게시합니다.</p>
-      <pre><code>git tag v1.2.0
-git push origin v1.2.0</code></pre>
+      <p>버전 릴리스는 macOS 러너에서 앱을 빌드해 GitHub Release로 게시합니다(<code>.github/workflows/release.yml</code>). 세 가지 방법으로 트리거하며 모두 같은 결과(태그 + Release)를 만듭니다.</p>
       <ul>
-        <li>트리거: <code>v*</code> 형식 태그 push (예: <code>v1.2.0</code>).</li>
-        <li>워크플로는 <code>swift test</code> 후 <code>scripts/build-app.sh</code>로 빌드하고 태그 버전을 번들에 스탬프합니다.</li>
+        <li><strong>RELEASE_VERSION 파일(remote 전용 흐름):</strong> <code>RELEASE_VERSION</code>을 새 버전으로 바꿔 작업 브랜치에 push. 태그 push 권한이 없는 원격 환경에서 사용합니다.</li>
+        <li><strong>태그 push:</strong> <code>git tag v1.2.0 &amp;&amp; git push origin v1.2.0</code>.</li>
+        <li><strong>수동 실행:</strong> Actions의 Release 워크플로를 <code>workflow_dispatch</code>로 실행하고 버전을 입력(워크플로가 기본 브랜치에 있을 때).</li>
+      </ul>
+      <p>동작 방식:</p>
+      <ul>
+        <li>해당 버전의 Release가 이미 있으면 빌드를 건너뜁니다(중복 push 안전).</li>
+        <li>워크플로는 <code>swift test</code> 후 <code>scripts/build-app.sh</code>로 빌드하고 버전을 번들에 스탬프합니다.</li>
         <li><code>.app</code>은 <code>ditto</code>로 <code>McDuck-&lt;tag&gt;-macos.zip</code>으로 압축하고 <code>.sha256</code> 체크섬과 함께 Release에 첨부합니다.</li>
         <li>다운로드: 저장소 <strong>Releases</strong> 페이지 또는 <code>gh release download &lt;tag&gt;</code>.</li>
-        <li>버전 태그는 의미 있는 버전(semver)을 사용하고, 한 번 게시한 태그는 다시 사용하지 않습니다.</li>
+        <li>버전은 의미 있는 버전(semver)을 사용하고, 한 번 게시한 버전은 다시 사용하지 않습니다.</li>
       </ul>
     </div>
 
