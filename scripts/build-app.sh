@@ -31,4 +31,13 @@ if [[ -n "${MCDUCK_VERSION:-}" ]]; then
   echo "Stamped version $SHORT_VERSION (build $BUILD_VERSION)"
 fi
 
+# Ad-hoc sign the bundle so it has a valid signature. This turns the
+# "damaged, move to Trash" Gatekeeper block into a normal unidentified-
+# developer prompt that can be bypassed with right-click > Open.
+# (Full notarization still requires a paid Apple Developer ID.)
+if command -v codesign >/dev/null 2>&1; then
+  codesign --force --deep --sign - "$APP_DIR"
+  echo "Ad-hoc signed $APP_DIR"
+fi
+
 echo "Built $APP_DIR"

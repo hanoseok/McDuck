@@ -170,6 +170,9 @@ scripts/build-app.sh</code></pre>
         <li>다운로드: 저장소 <strong>Releases</strong> 페이지 또는 <code>gh release download &lt;tag&gt;</code>.</li>
         <li>버전은 의미 있는 버전(semver)을 사용하고, 한 번 게시한 버전은 다시 사용하지 않습니다.</li>
       </ul>
+      <p>앱은 빌드 시 ad-hoc 서명(<code>codesign --sign -</code>)만 됩니다. 다운로드한 앱이 "손상됨"으로 차단되면 quarantine 속성을 제거하거나 우클릭 → 열기로 실행합니다.</p>
+      <pre><code>xattr -dr com.apple.quarantine McDuck.app</code></pre>
+      <p>경고를 완전히 없애려면 유료 Apple Developer ID로 서명·공증(notarization)이 필요합니다.</p>
     </div>
 
     <div class="section">
