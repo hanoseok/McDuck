@@ -1,11 +1,17 @@
 name: Release
 
 # Build the McDuck app and publish it as a versioned GitHub Release.
-# Push a tag like `v1.2.0` to trigger a release for that version.
+# Push a tag like `v1.2.0`, or run manually with a version, to release.
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. v0.0.1"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -22,10 +28,15 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Resolve version from tag
+      - name: Resolve version
         id: version
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          # Tag push uses the tag ref; manual dispatch uses the version input.
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ inputs.version }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "short=${TAG#v}" >> "$GITHUB_OUTPUT"
 
@@ -51,8 +62,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # --target creates the tag on this commit when run manually;
+          # for a tag push the tag already exists and --target is ignored.
           gh release create "${{ steps.version.outputs.tag }}" \
             "${{ steps.package.outputs.artifact }}" \
             "${{ steps.package.outputs.artifact }}.sha256" \
             --title "McDuck ${{ steps.version.outputs.tag }}" \
+            --target "${{ github.sha }}" \
             --generate-notes
