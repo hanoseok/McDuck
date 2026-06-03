@@ -1,0 +1,58 @@
+name: Release
+
+# Build the McDuck app and publish it as a versioned GitHub Release.
+# Push a tag like `v1.2.0` to trigger a release for that version.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Resolve version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "short=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Run tests
+        run: swift test
+
+      - name: Build app bundle
+        env:
+          MCDUCK_VERSION: ${{ steps.version.outputs.short }}
+          MCDUCK_BUILD: ${{ github.run_number }}
+        run: scripts/build-app.sh
+
+      - name: Package app
+        id: package
+        run: |
+          ARTIFACT="McDuck-${{ steps.version.outputs.tag }}-macos.zip"
+          # ditto preserves the macOS bundle structure and metadata.
+          ditto -c -k --sequesterRsrc --keepParent dist/McDuck.app "$ARTIFACT"
+          shasum -a 256 "$ARTIFACT" > "$ARTIFACT.sha256"
+          echo "artifact=$ARTIFACT" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "${{ steps.package.outputs.artifact }}" \
+            "${{ steps.package.outputs.artifact }}.sha256" \
+            --title "McDuck ${{ steps.version.outputs.tag }}" \
+            --generate-notes

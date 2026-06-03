@@ -151,6 +151,21 @@
 swift build
 scripts/build-app.sh</code></pre>
       <p>패키징 결과는 <code>dist/McDuck.app</code>에 생성됩니다. <code>dist/</code>는 git에 포함하지 않습니다.</p>
+      <p><code>MCDUCK_VERSION</code>(예: <code>1.2.0</code>)을 설정하면 번들의 <code>CFBundleShortVersionString</code>에, <code>MCDUCK_BUILD</code>는 <code>CFBundleVersion</code>에 기록됩니다.</p>
+    </div>
+
+    <div class="section">
+      <h2>릴리스와 버저닝</h2>
+      <p>버전 태그를 push 하면 <code>.github/workflows/release.yml</code>이 macOS 러너에서 앱을 빌드해 GitHub Release로 게시합니다.</p>
+      <pre><code>git tag v1.2.0
+git push origin v1.2.0</code></pre>
+      <ul>
+        <li>트리거: <code>v*</code> 형식 태그 push (예: <code>v1.2.0</code>).</li>
+        <li>워크플로는 <code>swift test</code> 후 <code>scripts/build-app.sh</code>로 빌드하고 태그 버전을 번들에 스탬프합니다.</li>
+        <li><code>.app</code>은 <code>ditto</code>로 <code>McDuck-&lt;tag&gt;-macos.zip</code>으로 압축하고 <code>.sha256</code> 체크섬과 함께 Release에 첨부합니다.</li>
+        <li>다운로드: 저장소 <strong>Releases</strong> 페이지 또는 <code>gh release download &lt;tag&gt;</code>.</li>
+        <li>버전 태그는 의미 있는 버전(semver)을 사용하고, 한 번 게시한 태그는 다시 사용하지 않습니다.</li>
+      </ul>
     </div>
 
     <div class="section">
