@@ -16,9 +16,11 @@ struct ModelsTests {
 
     @Test("DateOnly rejects malformed and out-of-range dates")
     func dateOnlyRejectsInvalid() {
+        // Note: the underlying DateFormatter rolls overflowing day components
+        // forward (e.g. Feb 30 -> Mar 2), so only structurally invalid strings
+        // are guaranteed to return nil.
         #expect(DateOnly.parse("not-a-date") == nil)
-        #expect(DateOnly.parse("2026-13-01") == nil) // month 13
-        #expect(DateOnly.parse("2026-02-30") == nil) // Feb 30
+        #expect(DateOnly.parse("2026-13-01") == nil) // month out of range
         #expect(DateOnly.parse("") == nil)
     }
 

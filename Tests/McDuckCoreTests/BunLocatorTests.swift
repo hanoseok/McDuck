@@ -10,6 +10,8 @@ struct BunLocatorTests {
 
     @Test("augmentedPATH puts bun's directory first and appends common locations")
     func augmentedPATHOrdering() {
+        // The first entry is the directory containing bun, not the bun path
+        // itself (augmentedPATH strips the last path component).
         let path = BunLocator.augmentedPATH(
             bunPath: "/custom/tools/bun",
             home: URL(fileURLWithPath: "/Users/test"),
@@ -17,7 +19,7 @@ struct BunLocatorTests {
         )
 
         #expect(path.split(separator: ":").map(String.init) == [
-            "/custom/tools/bun",
+            "/custom/tools",
             "/Users/test/.bun/bin",
             "/opt/homebrew/bin",
             "/usr/local/bin",
