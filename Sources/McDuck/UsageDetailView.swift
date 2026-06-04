@@ -49,11 +49,9 @@ struct UsageDetailView: View {
                         Text("Model")
                         Spacer()
                         Text("Tokens")
-                            .frame(width: 56, alignment: .trailing)
+                            .frame(width: 64, alignment: .trailing)
                         Text("Cost")
-                            .frame(width: 56, alignment: .trailing)
-                        Text("Time")
-                            .frame(width: 40, alignment: .trailing)
+                            .frame(width: 64, alignment: .trailing)
                     }
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -68,15 +66,10 @@ struct UsageDetailView: View {
                             Text(Formatters.compact(row.tokens))
                                 .font(.caption.weight(.medium))
                                 .foregroundStyle(.secondary)
-                                .frame(width: 56, alignment: .trailing)
+                                .frame(width: 64, alignment: .trailing)
                             Text(Formatters.currency(row.cost))
                                 .font(.caption.weight(.medium))
-                                .frame(width: 56, alignment: .trailing)
-                            // ccusage has no per-model time, so this stays "-".
-                            Text("-")
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 40, alignment: .trailing)
+                                .frame(width: 64, alignment: .trailing)
                         }
                     }
                 }
