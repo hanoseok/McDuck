@@ -60,10 +60,20 @@ struct McDuckPopover: View {
             SetupView(
                 requirement: requirement,
                 isInstalling: store.isInstalling,
-                log: store.setupLog
-            ) {
-                Task { await store.performSetup() }
-            }
+                log: store.setupLog,
+                action: {
+                    if requirement.isMissingBun {
+                        // No Bun: send the user to bun.com to install it themselves.
+                        if let url = URL(string: "https://bun.com") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    } else {
+                        Task { await store.performSetup() }
+                    }
+                },
+                secondaryTitle: requirement.isMissingBun ? "Recheck" : nil,
+                secondaryAction: requirement.isMissingBun ? { Task { await store.refresh() } } : nil
+            )
         case .loaded:
             loadedView()
         case .empty:

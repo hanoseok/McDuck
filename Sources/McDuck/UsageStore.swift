@@ -18,6 +18,11 @@ final class UsageStore {
         case missingBun
         case missingCcusage(String)
 
+        var isMissingBun: Bool {
+            if case .missingBun = self { return true }
+            return false
+        }
+
         var title: String {
             switch self {
             case .missingBun:
@@ -30,7 +35,7 @@ final class UsageStore {
         var message: String {
             switch self {
             case .missingBun:
-                "Install Bun to let McDuck run ccusage locally."
+                "Install Bun from bun.com, then tap Recheck. McDuck will set up ccusage for you afterwards."
             case .missingCcusage(let detail):
                 detail.isEmpty ? "Run setup to download and cache ccusage through bunx." : detail
             }
@@ -39,9 +44,18 @@ final class UsageStore {
         var actionTitle: String {
             switch self {
             case .missingBun:
-                "Install Bun"
+                "Open bun.com"
             case .missingCcusage:
                 "Install ccusage"
+            }
+        }
+
+        var actionSystemImage: String {
+            switch self {
+            case .missingBun:
+                "arrow.up.right.square"
+            case .missingCcusage:
+                "arrow.down.circle"
             }
         }
     }
