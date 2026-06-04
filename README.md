@@ -46,6 +46,22 @@ Run it locally:
 open dist/McDuck.app
 ```
 
+## Install (released builds)
+
+Install the latest release with one command (no `xattr` / System Settings — just the admin password):
+
+```bash
+curl -fsSL https://github.com/hanoseok/McDuck/releases/latest/download/remote-install.sh | bash
+```
+
+Or download `McDuck-<tag>.pkg` from the [Releases](https://github.com/hanoseok/McDuck/releases) page and double-click it.
+
+## Releases And Build Pipeline
+
+Releases are built on a macOS GitHub Actions runner. Bump `RELEASE_VERSION` (e.g. `v1.2.0`) and push to the working branch to trigger a versioned GitHub Release with a `.pkg`, a `.zip`, an installer script, and checksums.
+
+See **[docs/BUILD.md](docs/BUILD.md)** for the full build, versioning, release, install, and signing/notarization guide.
+
 ## How Usage Loading Works
 
 McDuck checks for Bun in common locations including `~/.bun/bin`, `/opt/homebrew/bin`, and `/usr/local/bin`.
