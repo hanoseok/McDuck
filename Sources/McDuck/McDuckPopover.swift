@@ -43,20 +43,6 @@ struct McDuckPopover: View {
             }
 
             Spacer()
-
-            if store.isRefreshing {
-                ProgressView()
-                    .controlSize(.small)
-            }
-
-            Button {
-                Task { await store.refresh(quiet: true) }
-            } label: {
-                Image(systemName: "arrow.clockwise")
-            }
-            .buttonStyle(.borderless)
-            .disabled(store.isInstalling || store.isRefreshing)
-            .help("Refresh")
         }
     }
 
@@ -193,6 +179,7 @@ struct McDuckPopover: View {
             } label: {
                 Label("Retry", systemImage: "arrow.clockwise")
             }
+            .mcDuckGlassButton()
         }
         .padding(12)
         .mcDuckGlass()
@@ -220,6 +207,21 @@ struct McDuckPopover: View {
                     .foregroundStyle(.secondary)
             }
 
+            Button {
+                Task { await store.refresh(quiet: true) }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .mcDuckGlassButton()
+            .controlSize(.small)
+            .disabled(store.isInstalling || store.isRefreshing)
+            .help("Refresh")
+
+            if store.isRefreshing {
+                ProgressView()
+                    .controlSize(.small)
+            }
+
             Spacer()
 
             Text(Self.appVersion)
@@ -231,7 +233,8 @@ struct McDuckPopover: View {
             } label: {
                 Label("Quit", systemImage: "power")
             }
-            .buttonStyle(.borderless)
+            .mcDuckGlassButton()
+            .controlSize(.small)
             .help("Quit McDuck")
         }
     }
@@ -276,7 +279,7 @@ private struct PopoverDatePicker: View {
             Text(date, format: .dateTime.year().month(.abbreviated).day())
                 .font(.caption)
         }
-        .buttonStyle(.bordered)
+        .mcDuckGlassButton()
         .controlSize(.small)
         .popover(isPresented: $isPresented) {
             DatePicker("", selection: $date, displayedComponents: .date)
