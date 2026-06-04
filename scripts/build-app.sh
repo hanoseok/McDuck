@@ -19,11 +19,8 @@ cp "$BIN_DIR/McDuck" "$MACOS_DIR/McDuck"
 cp "$ROOT_DIR/Resources/Info.plist" "$CONTENTS_DIR/Info.plist"
 chmod +x "$MACOS_DIR/McDuck"
 
-# Copy SwiftPM resource bundles (e.g. McDuck_McDuck.bundle) into the app so
-# Bundle.module resolves the bundled image at runtime.
-for bundle in "$BIN_DIR"/*.bundle; do
-  [[ -e "$bundle" ]] && cp -R "$bundle" "$RESOURCES_DIR/"
-done
+# Copy the coin image into the app so AppImages can load it via Bundle.main.
+cp "$ROOT_DIR/Resources/AppIcon.png" "$RESOURCES_DIR/AppIcon.png"
 
 # Stamp the app bundle with a release version when provided.
 # MCDUCK_VERSION sets CFBundleShortVersionString (e.g. 1.2.0).
@@ -39,7 +36,7 @@ fi
 
 # App icon: build AppIcon.icns from Resources/AppIcon.png (a 1024x1024 PNG)
 # when present. Info.plist references it via CFBundleIconFile=AppIcon.
-ICON_SRC="$ROOT_DIR/Sources/McDuck/Resources/AppIcon.png"
+ICON_SRC="$ROOT_DIR/Resources/AppIcon.png"
 if [[ -f "$ICON_SRC" ]] && command -v iconutil >/dev/null 2>&1 && command -v sips >/dev/null 2>&1; then
   ICONSET_DIR="$(mktemp -d)/AppIcon.iconset"
   mkdir -p "$ICONSET_DIR"
@@ -57,18 +54,13 @@ fi
 # Compile the asset catalog into the app's main bundle as Assets.car so named
 # images (e.g. MenuBarIcon used by MenuBarExtra) resolve at runtime. swift build
 # does not run actool, so do it here with the Xcode tool.
-XCASSETS="$ROOT_DIR/Sources/McDuck/Resources/Assets.xcassets"
+XCASSETS="$ROOT_DIR/Resources/Assets.xcassets"
 if [[ -d "$XCASSETS" ]] && command -v xcrun >/dev/null 2>&1; then
-  # Compile into both the main bundle and the SwiftPM module bundle so the
-  # named image resolves whether looked up via the main bundle or Bundle.module.
-  for dest in "$RESOURCES_DIR" "$RESOURCES_DIR/McDuck_McDuck.bundle"; do
-    [[ -d "$dest" ]] || continue
-    xcrun actool "$XCASSETS" \
-      --compile "$dest" \
-      --platform macosx \
-      --minimum-deployment-target 15.0 \
-      --output-format human-readable-text >/dev/null
-  done
+  xcrun actool "$XCASSETS" \
+    --compile "$RESOURCES_DIR" \
+    --platform macosx \
+    --minimum-deployment-target 15.0 \
+    --output-format human-readable-text >/dev/null
   echo "Compiled asset catalog"
 fi
 
