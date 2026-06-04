@@ -143,12 +143,10 @@ struct McDuckPopover: View {
 
             HStack(spacing: 8) {
                 if store.rangeMode == .custom {
-                    DatePicker("", selection: $store.customStart, displayedComponents: .date)
-                        .labelsHidden()
+                    PopoverDatePicker(date: $store.customStart)
                     Text("–")
                         .foregroundStyle(.secondary)
-                    DatePicker("", selection: $store.customEnd, displayedComponents: .date)
-                        .labelsHidden()
+                    PopoverDatePicker(date: $store.customEnd)
                 }
 
                 Spacer()
@@ -230,6 +228,30 @@ struct McDuckPopover: View {
             "No usage found"
         case .error:
             "Needs attention"
+        }
+    }
+}
+
+/// A date control that opens a calendar in a popover, avoiding the inline
+/// stepper field whose selected digit keeps a lingering blue highlight.
+private struct PopoverDatePicker: View {
+    @Binding var date: Date
+    @State private var isPresented = false
+
+    var body: some View {
+        Button {
+            isPresented = true
+        } label: {
+            Text(date, format: .dateTime.year().month(.abbreviated).day())
+                .font(.caption)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .popover(isPresented: $isPresented) {
+            DatePicker("", selection: $date, displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .labelsHidden()
+                .padding(10)
         }
     }
 }
