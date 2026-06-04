@@ -61,8 +61,8 @@ struct McDuckPopover: View {
             ) {
                 Task { await store.performSetup() }
             }
-        case .loaded(let dashboard):
-            loadedView(dashboard)
+        case .loaded:
+            loadedView()
         case .empty:
             messageView(
                 title: "No usage yet",
@@ -85,11 +85,13 @@ struct McDuckPopover: View {
         .mcDuckGlass()
     }
 
-    private func loadedView(_ dashboard: UsageStore.DashboardData) -> some View {
+    private func loadedView() -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            summaryStrip(dashboard.report)
+            rangeControls
 
-            TokenBarChart(days: Array(dashboard.report.days.suffix(14)))
+            summaryStrip
+
+            TokenBarChart(days: store.filteredDays)
                 .frame(height: 58)
                 .padding(12)
                 .mcDuckGlass(cornerRadius: 14)
@@ -118,11 +120,41 @@ struct McDuckPopover: View {
         }
     }
 
-    private func summaryStrip(_ report: UsageReport) -> some View {
+    private var rangeControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Picker("Range", selection: $store.rangeMode) {
+                ForEach(UsageStore.RangeMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            HStack(spacing: 8) {
+                if store.rangeMode == .custom {
+                    DatePicker("", selection: $store.customStart, displayedComponents: .date)
+                        .labelsHidden()
+                    Text("–")
+                        .foregroundStyle(.secondary)
+                    DatePicker("", selection: $store.customEnd, displayedComponents: .date)
+                        .labelsHidden()
+                }
+
+                Spacer()
+
+                Text(store.rangeLabel)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption)
+        }
+    }
+
+    private var summaryStrip: some View {
         HStack(spacing: 8) {
-            MetricPill(title: "Tokens", value: Formatters.compact(report.summary.totalTokens))
-            MetricPill(title: "Cost", value: Formatters.currency(report.summary.totalCostUSD))
-            MetricPill(title: "Days", value: "\(report.days.count)")
+            MetricPill(title: "Tokens", value: Formatters.compact(store.rangeSummary.totalTokens))
+            MetricPill(title: "Days", value: "\(store.rangeActiveDays)")
+            MetricPill(title: "Cost", value: Formatters.currency(store.rangeSummary.totalCostUSD))
         }
     }
 

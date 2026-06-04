@@ -50,6 +50,23 @@ final class UsageStore {
         let report: UsageReport
     }
 
+    /// Time window for the top summary + bar chart (does NOT affect the heatmap).
+    enum RangeMode: String, CaseIterable, Identifiable {
+        case week
+        case month
+        case custom
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .week: "1W"
+            case .month: "1M"
+            case .custom: "Custom"
+            }
+        }
+    }
+
     private let client: CcusageClient
     private let heatmapBuilder: HeatmapBuilder
 
@@ -60,6 +77,10 @@ final class UsageStore {
     var selectedDateString: String?
     /// nil = rolling "recent 12 months" view; otherwise a specific calendar year.
     var selectedYear: Int?
+    /// Active window for the summary strip and bar chart.
+    var rangeMode: RangeMode = .month
+    var customStart: Date = Calendar(identifier: .gregorian).date(byAdding: .day, value: -7, to: Date()) ?? Date()
+    var customEnd: Date = Date()
     var isInstalling = false
     var setupLog: String?
     var lastUpdated: Date?
@@ -108,6 +129,70 @@ final class UsageStore {
         }
         return "Last 12 months"
     }
+
+    // MARK: - Summary range (top + graph)
+
+    private var gregorian: Calendar { Calendar(identifier: .gregorian) }
+
+    /// Inclusive [start, end] day window for the active range mode.
+    var rangeInterval: (start: Date, end: Date) {
+        let today = gregorian.startOfDay(for: Date())
+        switch rangeMode {
+        case .week:
+            let start = gregorian.date(byAdding: .day, value: -6, to: today) ?? today
+            return (start, today)
+        case .month:
+            let back = gregorian.date(byAdding: .month, value: -1, to: today) ?? today
+            let start = gregorian.date(byAdding: .day, value: 1, to: back) ?? back
+            return (start, today)
+        case .custom:
+            let start = gregorian.startOfDay(for: min(customStart, customEnd))
+            let end = gregorian.startOfDay(for: max(customStart, customEnd))
+            return (start, end)
+        }
+    }
+
+    /// Usage days that fall within the active range.
+    var filteredDays: [UsageDay] {
+        guard let report = dashboard?.report else {
+            return []
+        }
+        let (start, end) = rangeInterval
+        return report.days.filter { day in
+            let date = gregorian.startOfDay(for: day.date)
+            return date >= start && date <= end
+        }
+    }
+
+    /// Aggregated totals for the active range.
+    var rangeSummary: UsageSummary {
+        let days = filteredDays
+        return UsageSummary(
+            inputTokens: days.reduce(0) { $0 + $1.inputTokens },
+            outputTokens: days.reduce(0) { $0 + $1.outputTokens },
+            cacheCreationTokens: days.reduce(0) { $0 + $1.cacheCreationTokens },
+            cacheReadTokens: days.reduce(0) { $0 + $1.cacheReadTokens },
+            totalTokens: days.reduce(0) { $0 + $1.totalTokens },
+            totalCostUSD: days.reduce(0) { $0 + $1.costUSD }
+        )
+    }
+
+    /// Number of days with usage inside the active range.
+    var rangeActiveDays: Int {
+        filteredDays.count
+    }
+
+    var rangeLabel: String {
+        let (start, end) = rangeInterval
+        return "\(Self.rangeFormatter.string(from: start)) – \(Self.rangeFormatter.string(from: end))"
+    }
+
+    private static let rangeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "MMM d"
+        return formatter
+    }()
 
     var selectedDay: UsageDay? {
         guard let report = dashboard?.report else {
