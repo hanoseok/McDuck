@@ -51,10 +51,10 @@ Install the latest release with one command (no `xattr` / System Settings — ju
 
 ```bash
 # latest
-curl -fsSL https://github.com/hanoseok/McDuck/releases/latest/download/remote-install.sh | bash
+curl -fsSL https://github.com/hanoseok/McDuck/releases/latest/download/install.sh | bash
 
 # a specific version (pass the tag)
-curl -fsSL https://github.com/hanoseok/McDuck/releases/download/v0.0.20/remote-install.sh | bash -s -- v0.0.20
+curl -fsSL https://github.com/hanoseok/McDuck/releases/download/v0.0.20/install.sh | bash -s -- v0.0.20
 ```
 
 Or download `McDuck-<tag>.pkg` from the [Releases](https://github.com/hanoseok/McDuck/releases) page and double-click it.

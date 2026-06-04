@@ -2,10 +2,10 @@
 # One-line installer for McDuck.
 #
 #   # latest:
-#   curl -fsSL https://github.com/hanoseok/McDuck/releases/latest/download/remote-install.sh | bash
+#   curl -fsSL https://github.com/hanoseok/McDuck/releases/latest/download/install.sh | bash
 #
 #   # a specific version (pass the tag as an argument):
-#   curl -fsSL https://github.com/hanoseok/McDuck/releases/download/v0.0.20/remote-install.sh | bash -s -- v0.0.20
+#   curl -fsSL https://github.com/hanoseok/McDuck/releases/download/v0.0.20/install.sh | bash -s -- v0.0.20
 #
 # Files fetched with curl are NOT flagged with com.apple.quarantine, so
 # Gatekeeper does not block them: no `xattr`, no "right-click > Open", no

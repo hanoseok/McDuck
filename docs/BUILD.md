@@ -84,7 +84,7 @@ git push origin <branch>     # 이 push가 워크플로를 트리거
 | `McDuck-<tag>.pkg` | 버전 표기된 설치 패키지 |
 | `McDuck.pkg` | **고정 이름** — `releases/latest/download/McDuck.pkg`로 API 없이 받기 위함 |
 | `McDuck-<tag>-macos.zip` | 앱 + `Install McDuck.command` |
-| `remote-install.sh` | 한 줄 설치 스크립트 |
+| `install.sh` | 한 줄 설치 스크립트 |
 | `McDuck-<tag>-checksums.sha256` | 체크섬 |
 
 ---
@@ -95,10 +95,10 @@ git push origin <branch>     # 이 push가 워크플로를 트리거
 
 ```bash
 # 최신
-curl -fsSL https://github.com/hanoseok/McDuck/releases/latest/download/remote-install.sh | bash
+curl -fsSL https://github.com/hanoseok/McDuck/releases/latest/download/install.sh | bash
 
 # 특정 버전(태그를 인자로 전달)
-curl -fsSL https://github.com/hanoseok/McDuck/releases/download/v0.0.20/remote-install.sh | bash -s -- v0.0.20
+curl -fsSL https://github.com/hanoseok/McDuck/releases/download/v0.0.20/install.sh | bash -s -- v0.0.20
 ```
 
 `curl`로 받은 파일에는 quarantine이 붙지 않아 Gatekeeper가 막지 않습니다. `xattr`·시스템 설정 불필요, **관리자 암호만** 한 번 입력(`sudo installer`). 스크립트는 GitHub API를 호출하지 않고 `releases/latest/download/McDuck.pkg`를 직접 받습니다(익명 레이트리밋 403 회피).
