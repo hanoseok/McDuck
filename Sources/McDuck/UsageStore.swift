@@ -84,6 +84,9 @@ final class UsageStore {
     var isInstalling = false
     /// True while a quiet (background) refresh is in flight.
     var isRefreshing = false
+    /// Per-day active duration (seconds) from `ccusage blocks`, loaded in the
+    /// background after the main report. Empty until the first fetch succeeds.
+    var dailyActivity: [String: TimeInterval] = [:]
     var setupLog: String?
     var lastUpdated: Date?
 
@@ -184,6 +187,16 @@ final class UsageStore {
     /// Number of days with usage inside the active range.
     var rangeActiveDays: Int {
         filteredDays.count
+    }
+
+    /// Total active duration (seconds) across the days in the active range.
+    var rangeActiveDuration: TimeInterval {
+        filteredDays.reduce(0) { $0 + (dailyActivity[$1.dateString] ?? 0) }
+    }
+
+    /// Activity time for the summary strip; "-" until background data arrives.
+    var rangeActiveTimeText: String {
+        dailyActivity.isEmpty ? "-" : Formatters.duration(rangeActiveDuration)
     }
 
     var rangeLabel: String {
@@ -316,6 +329,14 @@ final class UsageStore {
             selectedDateString = selectedDateString ?? report.days.last?.dateString
             phase = .loaded(DashboardData(report: report))
             lastUpdated = Date()
+
+            // Activity time is supplementary: the report is already on screen,
+            // so fetch it in the background and fill in once it arrives. Keep the
+            // previous values if a fetch comes back empty.
+            let activity = await client.loadDailyActivity()
+            if !activity.isEmpty {
+                dailyActivity = activity
+            }
         } catch {
             // During a quiet refresh, keep the last good data on screen.
             if !quiet || !hasLoadedData {

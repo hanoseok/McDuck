@@ -198,4 +198,42 @@ struct CcusageParserTests {
             try CcusageParser().parseDailyJSON(json)
         }
     }
+
+    @Test("blocks JSON aggregates active duration per day, skipping gaps")
+    func parsesBlocksIntoDailyActivity() throws {
+        let json = """
+        {
+          "blocks": [
+            {
+              "id": "a",
+              "startTime": "2026-05-16T09:00:00.000Z",
+              "endTime": "2026-05-16T14:00:00.000Z",
+              "actualEndTime": "2026-05-16T11:00:00.000Z",
+              "isActive": false
+            },
+            {
+              "id": "b",
+              "startTime": "2026-05-16T15:00:00.000Z",
+              "endTime": "2026-05-16T20:00:00.000Z",
+              "actualEndTime": "2026-05-16T15:30:00.000Z",
+              "isActive": false
+            },
+            {
+              "id": "gap",
+              "startTime": "2026-05-17T00:00:00.000Z",
+              "endTime": "2026-05-17T05:00:00.000Z",
+              "isGap": true
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let activity = try CcusageParser().parseBlocksJSON(json)
+
+        // Two non-gap blocks on 2026-05-16 (UTC): 2h + 0.5h = 2.5h. The gap is skipped.
+        let day = activity["2026-05-16"]
+        #expect(day != nil)
+        #expect(abs((day ?? 0) - 9000) < 1) // 2.5 hours in seconds
+        #expect(activity["2026-05-17"] == nil)
+    }
 }

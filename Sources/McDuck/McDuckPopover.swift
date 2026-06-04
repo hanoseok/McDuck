@@ -125,7 +125,10 @@ struct McDuckPopover: View {
             .mcDuckGlass(cornerRadius: 14)
 
             if let selectedDay = store.selectedDay {
-                UsageDetailView(day: selectedDay)
+                UsageDetailView(
+                    day: selectedDay,
+                    activity: store.dailyActivity[selectedDay.dateString]
+                )
             }
         }
     }
@@ -163,7 +166,7 @@ struct McDuckPopover: View {
     private var summaryStrip: some View {
         HStack(spacing: 8) {
             MetricPill(title: "Tokens", value: Formatters.compact(store.rangeSummary.totalTokens))
-            MetricPill(title: "Days", value: "\(store.rangeActiveDays)")
+            MetricPill(title: "Time", value: store.rangeActiveTimeText)
             MetricPill(title: "Cost", value: Formatters.currency(store.rangeSummary.totalCostUSD))
         }
     }

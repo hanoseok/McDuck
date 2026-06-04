@@ -3,6 +3,15 @@ import SwiftUI
 
 struct UsageDetailView: View {
     let day: UsageDay
+    /// Active duration for this day (seconds); nil until background data loads.
+    var activity: TimeInterval?
+
+    private var activityText: String {
+        guard let activity else {
+            return "-"
+        }
+        return Formatters.duration(activity)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -10,7 +19,7 @@ struct UsageDetailView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(day.dateString)
                         .font(.headline)
-                    Text("\(Formatters.compact(day.totalTokens)) tokens")
+                    Text("\(Formatters.compact(day.totalTokens)) tokens · \(activityText)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -40,9 +49,11 @@ struct UsageDetailView: View {
                         Text("Model")
                         Spacer()
                         Text("Tokens")
-                            .frame(width: 64, alignment: .trailing)
+                            .frame(width: 56, alignment: .trailing)
+                        Text("Time")
+                            .frame(width: 40, alignment: .trailing)
                         Text("Cost")
-                            .frame(width: 64, alignment: .trailing)
+                            .frame(width: 56, alignment: .trailing)
                     }
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -57,10 +68,15 @@ struct UsageDetailView: View {
                             Text(Formatters.compact(row.tokens))
                                 .font(.caption.weight(.medium))
                                 .foregroundStyle(.secondary)
-                                .frame(width: 64, alignment: .trailing)
+                                .frame(width: 56, alignment: .trailing)
+                            // ccusage has no per-model time, so this stays "-".
+                            Text("-")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 40, alignment: .trailing)
                             Text(Formatters.currency(row.cost))
                                 .font(.caption.weight(.medium))
-                                .frame(width: 64, alignment: .trailing)
+                                .frame(width: 56, alignment: .trailing)
                         }
                     }
                 }
@@ -99,5 +115,21 @@ enum Formatters {
 
     static func currency(_ value: Double) -> String {
         value.formatted(.currency(code: "USD").precision(.fractionLength(2)))
+    }
+
+    /// Human-friendly active duration; returns "-" for non-positive values.
+    static func duration(_ seconds: TimeInterval) -> String {
+        guard seconds > 0 else {
+            return "-"
+        }
+
+        let totalMinutes = Int(seconds / 60)
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        }
+        return "\(minutes)m"
     }
 }

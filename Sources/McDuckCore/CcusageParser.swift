@@ -126,6 +126,67 @@ public struct CcusageParser: Sendable {
     }
 }
 
+extension CcusageParser {
+    /// Parses `ccusage blocks --json` into per-day active duration (seconds),
+    /// keyed by the local day of each block's start. Gaps are ignored; a block's
+    /// active span is `actualEndTime - startTime` (falling back to `endTime`).
+    public func parseBlocksJSON(_ data: Data) throws -> [String: TimeInterval] {
+        let payload = try JSONDecoder().decode(RawBlocksPayload.self, from: data)
+        var result: [String: TimeInterval] = [:]
+
+        for block in payload.blocks ?? [] {
+            if block.isGap == true {
+                continue
+            }
+            guard let startString = block.startTime,
+                  let start = Self.parseISODate(startString) else {
+                continue
+            }
+
+            let end = block.actualEndTime.flatMap(Self.parseISODate)
+                ?? block.endTime.flatMap(Self.parseISODate)
+                ?? start
+            let duration = max(end.timeIntervalSince(start), 0)
+            guard duration > 0 else {
+                continue
+            }
+
+            let dateString = DateOnly.string(from: start)
+            result[dateString, default: 0] += duration
+        }
+
+        return result
+    }
+
+    static func parseISODate(_ string: String) -> Date? {
+        isoWithFraction.date(from: string) ?? isoPlain.date(from: string)
+    }
+
+    private static let isoWithFraction: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let isoPlain: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+}
+
+private struct RawBlocksPayload: Decodable {
+    var blocks: [RawBlock]?
+}
+
+private struct RawBlock: Decodable {
+    var startTime: String?
+    var endTime: String?
+    var actualEndTime: String?
+    var isActive: Bool?
+    var isGap: Bool?
+}
+
 private struct RawPayload: Decodable {
     var type: String?
     var data: [RawDay]?
