@@ -195,7 +195,7 @@ struct McDuckPopover: View {
     }
 
     private var footer: some View {
-        HStack {
+        HStack(spacing: 8) {
             if let lastUpdated = store.lastUpdated {
                 Text("Updated \(lastUpdated.formatted(date: .omitted, time: .shortened))")
                     .font(.caption2)
@@ -203,6 +203,10 @@ struct McDuckPopover: View {
             }
 
             Spacer()
+
+            Text(Self.appVersion)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
 
             Button {
                 NSApplication.shared.terminate(nil)
@@ -212,6 +216,15 @@ struct McDuckPopover: View {
             .buttonStyle(.borderless)
             .help("Quit McDuck")
         }
+    }
+
+    /// App version from the bundle (stamped at build time), e.g. "v0.0.15".
+    private static var appVersion: String {
+        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+        guard let short, !short.isEmpty else {
+            return "dev"
+        }
+        return "v\(short)"
     }
 
     private var statusText: String {
