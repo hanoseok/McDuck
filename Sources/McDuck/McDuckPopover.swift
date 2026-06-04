@@ -292,6 +292,14 @@ private struct TokenBarChart: View {
     let days: [UsageDay]
 
     @State private var hoveredDay: Date?
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// A fully opaque, fixed RGB color (not a system/dynamic color). System
+    /// colors render with vibrancy inside the menu-bar popover, which is why the
+    /// tooltip looked see-through; a literal color stays solid.
+    private var tooltipBackground: Color {
+        colorScheme == .dark ? Color(red: 0.16, green: 0.16, blue: 0.17) : .white
+    }
 
     private struct Segment: Identifiable {
         var id: String { "\(date.timeIntervalSince1970)-\(model)" }
@@ -411,7 +419,7 @@ private struct TokenBarChart: View {
         .frame(minWidth: 150, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color(nsColor: .windowBackgroundColor))
+                .fill(tooltipBackground)
         )
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
