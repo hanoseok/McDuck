@@ -20,7 +20,7 @@ struct McDuckPopover: View {
     private var header: some View {
         HStack(spacing: 10) {
             Group {
-                if let icon = AppImages.appIcon {
+                if let icon = AppImages.titleIcon {
                     Image(nsImage: icon)
                         .resizable()
                         .scaledToFit()
