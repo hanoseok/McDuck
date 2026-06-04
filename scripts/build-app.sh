@@ -58,7 +58,8 @@ fi
 MENUBAR_SRC="$ROOT_DIR/Resources/McDuck-menubar.png"
 IMGSET="$ROOT_DIR/Resources/Assets.xcassets/MenuBarIcon.imageset"
 if [[ -f "$MENUBAR_SRC" ]] && [[ -d "$IMGSET" ]] && command -v sips >/dev/null 2>&1; then
-  for entry in "18 icon-18.png" "36 icon-36.png" "54 icon-54.png"; do
+  # 27pt at 1x/2x/3x (icon-18/36/54.png are the 1x/2x/3x slot filenames).
+  for entry in "27 icon-18.png" "54 icon-36.png" "81 icon-54.png"; do
     set -- $entry
     sips -z "$1" "$1" "$MENUBAR_SRC" --out "$IMGSET/$2" >/dev/null
   done
