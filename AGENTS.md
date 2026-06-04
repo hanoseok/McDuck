@@ -100,23 +100,26 @@ push 이벤트로 워크플로가 macOS 러너(`runs-on: macos-26`)에서 다음
   https://github.com/<owner>/<repo>/releases/download/<tag>/McDuck-<tag>-macos.zip
   ```
 
-### 4. 다운로드한 앱 실행
+### 4. 설치 / 실행
 
-`.app`은 macOS 번들(폴더)이라 zip으로 배포합니다. 압축을 풀면 `McDuck.app`이 됩니다.
+zip 안에는 `McDuck.app`과 **`Install McDuck.command`** 설치 스크립트(`scripts/install.command`)가 함께 들어 있습니다. 설치 스크립트는 실행 중인 McDuck 종료 → `/Applications` 설치 → quarantine 제거 → 실행까지 한 번에 처리합니다.
 
 ```bash
-unzip McDuck-<tag>-macos.zip       # → McDuck.app
+cd ~/Downloads
+unzip -o McDuck-<tag>-macos.zip
+bash "McDuck-<tag>/Install McDuck.command"   # quarantine 영향 없이 실행
 ```
 
-앱은 ad-hoc 서명만 되어 있고 **공증(notarization)은 안 됨**이라, 브라우저로 받으면 macOS가 quarantine을 붙여 Gatekeeper가 막습니다. 다음 중 하나로 실행합니다.
+> Finder에서 `Install McDuck.command`를 더블클릭해도 되지만, 다운로드 파일은 quarantine이 붙어 첫 실행 시 경고가 날 수 있습니다. 위처럼 `bash`로 실행하면 우회됩니다.
+
+수동으로 하려면 ad-hoc 서명만 된 앱이라 quarantine을 직접 제거해야 합니다.
 
 ```bash
-# quarantine 속성 제거 후 실행 (가장 확실)
 xattr -dr com.apple.quarantine McDuck.app
 open McDuck.app
 ```
 
-또는 **시스템 설정 → 개인정보 보호 및 보안 → "그래도 열기"** 로 통과합니다. (macOS 15/26부터 우클릭 → 열기 우회는 막혔습니다.)
+또는 **시스템 설정 → 개인정보 보호 및 보안 → "그래도 열기"** (macOS 15/26부터 우클릭 → 열기 우회는 막힘).
 
 > 다운로드 후 경고 없이 바로 실행되게 하려면 유료 Apple Developer ID로 정식 서명 + 공증이 필요합니다. 필요 시 워크플로에 `codesign`(Developer ID) → `xcrun notarytool submit` → `xcrun stapler staple` 단계를 추가하고, 인증서/암호를 GitHub Secrets에 등록합니다.
 

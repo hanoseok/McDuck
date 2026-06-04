@@ -81,9 +81,19 @@ jobs:
         if: steps.gate.outputs.release == 'true'
         id: package
         run: |
-          ARTIFACT="McDuck-${{ steps.version.outputs.tag }}-macos.zip"
+          TAG="${{ steps.version.outputs.tag }}"
+          STAGE="McDuck-$TAG"
+          # Stage the app together with a double-clickable installer so users
+          # get quit + install + de-quarantine + open in one step.
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE"
+          cp -R dist/McDuck.app "$STAGE/McDuck.app"
+          cp scripts/install.command "$STAGE/Install McDuck.command"
+          chmod +x "$STAGE/Install McDuck.command"
+
+          ARTIFACT="McDuck-$TAG-macos.zip"
           # ditto preserves the macOS bundle structure and metadata.
-          ditto -c -k --sequesterRsrc --keepParent dist/McDuck.app "$ARTIFACT"
+          ditto -c -k --sequesterRsrc --keepParent "$STAGE" "$ARTIFACT"
           shasum -a 256 "$ARTIFACT" > "$ARTIFACT.sha256"
           echo "artifact=$ARTIFACT" >> "$GITHUB_OUTPUT"
 
