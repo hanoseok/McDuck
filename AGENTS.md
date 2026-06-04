@@ -149,13 +149,29 @@ shasum -a 256 -c McDuck-<tag>-macos.zip.sha256
 - 의존성이 없으면 자동 설치하지 않고, 사용자가 팝오버의 설치 버튼을 눌렀을 때만 진행합니다.
 - `ccusage`는 글로벌 설치보다 `bunx ccusage` 실행을 우선합니다.
 
+## 아이콘과 에셋
+
+이미지는 `Resources/`에 두고, `build-app.sh`가 앱 번들에 넣습니다. (SwiftPM `Bundle.module`은 사용하지 않습니다 — 아래 "에셋/리소스 로딩 주의" 참고.)
+
+- **앱 아이콘(Finder/설치 마법사):** `Resources/AppIcon.png` → `build-app.sh`가 `iconutil`로 `AppIcon.icns` 생성, `Info.plist`의 `CFBundleIconFile=AppIcon`.
+- **타이틀(팝오버 헤더) 아이콘:** `Resources/McDuck-title.png` → `Contents/Resources/`로 복사, 앱이 `Bundle.main`으로 로드(`AppImages.titleIcon`).
+- **메뉴바 아이콘:** `Resources/McDuck-menubar.png` → `build-app.sh`가 `sips`로 `Resources/Assets.xcassets/MenuBarIcon.imageset`의 1x/2x/3x(현재 24pt = 24/48/72px)를 재생성하고, `actool`로 `Assets.car`(메인 번들)로 컴파일. 앱은 `MenuBarExtra("McDuck", image: "MenuBarIcon")`로 표시.
+- 메뉴바 아이콘 크기를 바꾸려면 imageset의 px(=point×scale)만 조정합니다. macOS 메뉴바 높이(~22pt) 한계가 있어 그 이상은 줄여서 표시될 수 있습니다.
+
+## 에셋/리소스 로딩 주의 (중요)
+
+- **`Bundle.module`을 쓰지 않습니다.** SwiftPM의 리소스 번들 접근자는 수동 조립된 `.app`에서 번들을 못 찾아 **실행 즉시 `Fatal error`로 크래시**합니다(`McDuck_McDuck.bundle`를 `.app` 최상위에서 찾음). 이미지는 `Bundle.main`(=`Contents/Resources`) 또는 컴파일된 `Assets.car`에서 로드합니다.
+- **`swift build`는 `.xcassets`를 컴파일하지 않습니다.** 에셋 카탈로그는 `build-app.sh`에서 `actool`로 `Assets.car`를 만들어 메인 번들에 넣습니다.
+- **메뉴바 커스텀 아이콘은 "이름 있는 에셋 이미지"** 를 씁니다(`MenuBarExtra(image:)` / `Image("name")`). `Image(nsImage:)`는 메뉴바 라벨에서 표시되지 않을 수 있습니다.
+
 ## 구현 규칙
 
 - JSON 파싱, 명령 실행, 상태 판정은 `McDuckCore`에 둡니다.
 - SwiftUI 뷰와 macOS 앱 진입점은 `Sources/McDuck`에 둡니다.
 - 코어 동작을 바꾸는 경우 테스트를 먼저 추가하거나 갱신합니다.
 - UI는 상태바 유틸리티에 맞게 작고 명확하게 유지합니다.
-- macOS 최신 API를 사용할 때는 빌드 가능한 fallback 또는 availability check를 둡니다.
+- macOS 최신 API를 사용할 때는 빌드 가능한 fallback 또는 availability check를 둡니다(예: Liquid Glass `glassEffect`/`.glass` 버튼 스타일은 macOS 26+, 그 이전은 material/`.bordered`로 대체).
+- 버튼은 `mcDuckGlass`/`mcDuckGlassButton`으로 Liquid Glass를 적용합니다. 차트 호버 툴팁은 차트 annotation이 아니라 **최상위 `.overlay`** 로 그려 범례 위에 불투명하게 표시합니다.
 - ccusage 출력 스키마는 버전에 따라 다릅니다(예: 날짜 필드가 `date` 또는 `period`, per-model이 `breakdown` 딕셔너리 또는 `modelBreakdowns` 배열). 파서는 누락 필드에 관대해야 하며, 디코딩 실패 시 원본 출력 일부를 담은 명확한 에러를 던집니다.
 
 ## Git 규칙
