@@ -75,12 +75,17 @@ public struct CcusageParser: Sendable {
         // with `--breakdown`, as a `modelBreakdowns` array keyed by `modelName`.
         if let dict = raw.breakdown {
             return dict.mapValues { usage in
-                ModelUsage(
-                    inputTokens: usage.inputTokens ?? 0,
-                    outputTokens: usage.outputTokens ?? 0,
-                    cacheCreationTokens: usage.cacheCreationTokens ?? 0,
-                    cacheReadTokens: usage.cacheReadTokens ?? 0,
-                    totalTokens: usage.totalTokens ?? 0,
+                let input = usage.inputTokens ?? 0
+                let output = usage.outputTokens ?? 0
+                let cacheCreation = usage.cacheCreationTokens ?? 0
+                let cacheRead = usage.cacheReadTokens ?? 0
+                return ModelUsage(
+                    inputTokens: input,
+                    outputTokens: output,
+                    cacheCreationTokens: cacheCreation,
+                    cacheReadTokens: cacheRead,
+                    // ccusage's per-model entries often omit a total; derive it.
+                    totalTokens: usage.totalTokens ?? (input + output + cacheCreation + cacheRead),
                     costUSD: usage.costUSD ?? usage.cost ?? usage.totalCost ?? 0
                 )
             }
@@ -90,12 +95,16 @@ public struct CcusageParser: Sendable {
             var result: [String: ModelUsage] = [:]
             for item in list {
                 guard let name = item.modelName else { continue }
+                let input = item.inputTokens ?? 0
+                let output = item.outputTokens ?? 0
+                let cacheCreation = item.cacheCreationTokens ?? 0
+                let cacheRead = item.cacheReadTokens ?? 0
                 result[name] = ModelUsage(
-                    inputTokens: item.inputTokens ?? 0,
-                    outputTokens: item.outputTokens ?? 0,
-                    cacheCreationTokens: item.cacheCreationTokens ?? 0,
-                    cacheReadTokens: item.cacheReadTokens ?? 0,
-                    totalTokens: item.totalTokens ?? 0,
+                    inputTokens: input,
+                    outputTokens: output,
+                    cacheCreationTokens: cacheCreation,
+                    cacheReadTokens: cacheRead,
+                    totalTokens: item.totalTokens ?? (input + output + cacheCreation + cacheRead),
                     costUSD: item.costUSD ?? item.cost ?? item.totalCost ?? 0
                 )
             }

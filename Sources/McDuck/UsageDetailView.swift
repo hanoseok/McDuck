@@ -36,6 +36,17 @@ struct UsageDetailView: View {
                 Divider()
 
                 VStack(spacing: 7) {
+                    HStack(spacing: 8) {
+                        Text("Model")
+                        Spacer()
+                        Text("Tokens")
+                            .frame(width: 64, alignment: .trailing)
+                        Text("Cost")
+                            .frame(width: 64, alignment: .trailing)
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
                     ForEach(modelRows, id: \.name) { row in
                         HStack(spacing: 8) {
                             Text(row.name)
@@ -46,6 +57,10 @@ struct UsageDetailView: View {
                             Text(Formatters.compact(row.tokens))
                                 .font(.caption.weight(.medium))
                                 .foregroundStyle(.secondary)
+                                .frame(width: 64, alignment: .trailing)
+                            Text(Formatters.currency(row.cost))
+                                .font(.caption.weight(.medium))
+                                .frame(width: 64, alignment: .trailing)
                         }
                     }
                 }
@@ -55,14 +70,14 @@ struct UsageDetailView: View {
         .mcDuckGlass(cornerRadius: 14)
     }
 
-    private var modelRows: [(name: String, tokens: Int)] {
+    private var modelRows: [(name: String, tokens: Int, cost: Double)] {
         if !day.breakdown.isEmpty {
             return day.breakdown
-                .map { (name: $0.key, tokens: $0.value.totalTokens) }
+                .map { (name: $0.key, tokens: $0.value.totalTokens, cost: $0.value.costUSD) }
                 .sorted { $0.tokens > $1.tokens }
         }
 
-        return day.models.map { (name: $0, tokens: 0) }
+        return day.models.map { (name: $0, tokens: 0, cost: 0) }
     }
 
     private func metric(_ title: String, _ value: Int) -> some View {

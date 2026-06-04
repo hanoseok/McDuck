@@ -4,6 +4,9 @@ import SwiftUI
 struct HeatmapGrid: View {
     let cells: [HeatmapCell]
     @Binding var selectedDateString: String?
+    /// Initial scroll position: trailing keeps "today" on the right for the
+    /// rolling view; leading left-aligns a selected calendar year (Jan first).
+    var scrollAnchor: UnitPoint = .trailing
 
     private let cellSize: CGFloat = 6
     private let spacing: CGFloat = 1
@@ -29,7 +32,7 @@ struct HeatmapGrid: View {
             }
             .padding(.trailing, 2)
         }
-        .defaultScrollAnchor(.trailing)
+        .defaultScrollAnchor(scrollAnchor)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 

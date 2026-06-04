@@ -9,7 +9,7 @@ struct McDuckApp: App {
             McDuckPopover(store: store)
                 .frame(width: 480)
                 .task {
-                    await store.refreshIfNeeded()
+                    store.startAutoRefresh()
                 }
         }
         .menuBarExtraStyle(.window)

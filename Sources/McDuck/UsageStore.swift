@@ -82,8 +82,12 @@ final class UsageStore {
     var customStart: Date = Calendar(identifier: .gregorian).date(byAdding: .day, value: -7, to: Date()) ?? Date()
     var customEnd: Date = Date()
     var isInstalling = false
+    /// True while a quiet (background) refresh is in flight.
+    var isRefreshing = false
     var setupLog: String?
     var lastUpdated: Date?
+
+    @ObservationIgnored private var autoRefreshTask: Task<Void, Never>?
 
     init(
         client: CcusageClient = CcusageClient(),
@@ -207,6 +211,29 @@ final class UsageStore {
         return report.days.last
     }
 
+    /// True once we have a usable dashboard to keep showing during quiet refreshes.
+    private var hasLoadedData: Bool {
+        if case .loaded = phase { return true }
+        return false
+    }
+
+    /// Starts a long-lived loop: load once, then quietly refresh on an interval.
+    /// The task is owned by the store so it keeps running while the popover is closed.
+    func startAutoRefresh(interval: Duration = .seconds(600)) {
+        guard autoRefreshTask == nil else {
+            return
+        }
+
+        autoRefreshTask = Task { [weak self] in
+            await self?.refreshIfNeeded()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: interval)
+                guard !Task.isCancelled else { break }
+                await self?.refresh(quiet: true)
+            }
+        }
+    }
+
     func refreshIfNeeded() async {
         guard phase == .idle else {
             return
@@ -216,16 +243,33 @@ final class UsageStore {
     }
 
     func refresh() async {
-        phase = .loading
+        await refresh(quiet: false)
+    }
+
+    /// When `quiet` is true and data is already loaded, the current view is kept
+    /// on screen (no loading/empty/error flash); it only swaps in fresh data on
+    /// success. Used by the auto-refresh loop and the manual refresh button.
+    func refresh(quiet: Bool) async {
+        if quiet {
+            isRefreshing = true
+        } else {
+            phase = .loading
+        }
+        defer { isRefreshing = false }
+
         setupLog = nil
 
         switch await client.checkDependencies() {
         case .missingBun:
-            phase = .setup(.missingBun)
+            if !quiet || !hasLoadedData {
+                phase = .setup(.missingBun)
+            }
         case .ccusageUnavailable(_, let message):
-            phase = .setup(.missingCcusage(message))
+            if !quiet || !hasLoadedData {
+                phase = .setup(.missingCcusage(message))
+            }
         case .ready:
-            await loadUsage()
+            await loadUsage(quiet: quiet)
         }
     }
 
@@ -259,11 +303,13 @@ final class UsageStore {
         }
     }
 
-    private func loadUsage() async {
+    private func loadUsage(quiet: Bool = false) async {
         do {
             let report = try await client.loadDailyReport()
             guard !report.days.isEmpty else {
-                phase = .empty
+                if !quiet || !hasLoadedData {
+                    phase = .empty
+                }
                 return
             }
 
@@ -271,7 +317,10 @@ final class UsageStore {
             phase = .loaded(DashboardData(report: report))
             lastUpdated = Date()
         } catch {
-            phase = .error(error.localizedDescription)
+            // During a quiet refresh, keep the last good data on screen.
+            if !quiet || !hasLoadedData {
+                phase = .error(error.localizedDescription)
+            }
         }
     }
 }

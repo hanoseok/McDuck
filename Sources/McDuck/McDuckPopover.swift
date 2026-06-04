@@ -37,13 +37,18 @@ struct McDuckPopover: View {
 
             Spacer()
 
+            if store.isRefreshing {
+                ProgressView()
+                    .controlSize(.small)
+            }
+
             Button {
-                Task { await store.refresh() }
+                Task { await store.refresh(quiet: true) }
             } label: {
                 Image(systemName: "arrow.clockwise")
             }
             .buttonStyle(.borderless)
-            .disabled(store.isInstalling)
+            .disabled(store.isInstalling || store.isRefreshing)
             .help("Refresh")
         }
     }
@@ -92,7 +97,7 @@ struct McDuckPopover: View {
             summaryStrip
 
             TokenBarChart(days: store.filteredDays)
-                .frame(height: 58)
+                .frame(height: 150)
                 .padding(12)
                 .mcDuckGlass(cornerRadius: 14)
 
@@ -107,7 +112,12 @@ struct McDuckPopover: View {
                 }
 
                 HStack(alignment: .top, spacing: 10) {
-                    HeatmapGrid(cells: store.heatmapCells, selectedDateString: $store.selectedDateString)
+                    HeatmapGrid(
+                        cells: store.heatmapCells,
+                        selectedDateString: $store.selectedDateString,
+                        scrollAnchor: store.selectedYear == nil ? .trailing : .leading
+                    )
+                    .id(store.selectedYear)
                     YearSelector(years: store.availableYears, selectedYear: $store.selectedYear)
                 }
             }
@@ -246,18 +256,58 @@ private struct MetricPill: View {
 private struct TokenBarChart: View {
     let days: [UsageDay]
 
-    var body: some View {
-        Chart(days) { day in
-            BarMark(
-                x: .value("Date", day.date),
-                y: .value("Tokens", day.totalTokens)
-            )
-            .foregroundStyle(.blue.gradient)
-            .cornerRadius(3)
+    private struct Segment: Identifiable {
+        var id: String { "\(date.timeIntervalSince1970)-\(model)" }
+        let date: Date
+        let model: String
+        let tokens: Int
+    }
+
+    /// One stacked segment per (day, model) so each bar shows the day total and
+    /// the per-model proportion within it.
+    private var segments: [Segment] {
+        days.flatMap { day -> [Segment] in
+            if day.breakdown.isEmpty {
+                return [Segment(date: day.date, model: "Total", tokens: day.totalTokens)]
+            }
+            return day.breakdown.map { entry in
+                Segment(date: day.date, model: entry.key, tokens: entry.value.totalTokens)
+            }
         }
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
-        .accessibilityLabel("Recent token usage bar chart")
+    }
+
+    var body: some View {
+        Chart(segments) { segment in
+            BarMark(
+                x: .value("Date", segment.date, unit: .day),
+                y: .value("Tokens", segment.tokens)
+            )
+            .foregroundStyle(by: .value("Model", segment.model))
+        }
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 6)) { value in
+                AxisGridLine()
+                AxisValueLabel {
+                    if let date = value.as(Date.self) {
+                        Text(date, format: .dateTime.month(.abbreviated).day())
+                    }
+                }
+            }
+        }
+        .chartYAxis {
+            AxisMarks { value in
+                AxisGridLine()
+                AxisValueLabel {
+                    if let tokens = value.as(Int.self) {
+                        Text(tokens.formatted(.number.notation(.compactName)))
+                    }
+                }
+            }
+        }
+        .chartXAxisLabel("Date")
+        .chartYAxisLabel("Tokens")
+        .chartLegend(position: .bottom, alignment: .leading)
+        .accessibilityLabel("Token usage by model and day")
     }
 }
 
