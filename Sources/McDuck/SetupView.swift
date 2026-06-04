@@ -31,12 +31,13 @@ struct SetupView: View {
                 Label(requirement.actionTitle, systemImage: requirement.actionSystemImage)
                     .frame(maxWidth: .infinity)
             }
+            .mcDuckGlassButton(prominent: true)
             .controlSize(.large)
             .disabled(isInstalling)
 
             if let secondaryTitle, let secondaryAction {
                 Button(secondaryTitle, action: secondaryAction)
-                    .buttonStyle(.borderless)
+                    .mcDuckGlassButton()
                     .controlSize(.small)
                     .disabled(isInstalling)
             }

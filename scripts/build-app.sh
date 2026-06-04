@@ -19,8 +19,10 @@ cp "$BIN_DIR/McDuck" "$MACOS_DIR/McDuck"
 cp "$ROOT_DIR/Resources/Info.plist" "$CONTENTS_DIR/Info.plist"
 chmod +x "$MACOS_DIR/McDuck"
 
-# Copy the coin image into the app so AppImages can load it via Bundle.main.
-cp "$ROOT_DIR/Resources/AppIcon.png" "$RESOURCES_DIR/AppIcon.png"
+# Copy the title (header) image into the app so AppImages can load it.
+if [[ -f "$ROOT_DIR/Resources/McDuck-title.png" ]]; then
+  cp "$ROOT_DIR/Resources/McDuck-title.png" "$RESOURCES_DIR/McDuck-title.png"
+fi
 
 # Stamp the app bundle with a release version when provided.
 # MCDUCK_VERSION sets CFBundleShortVersionString (e.g. 1.2.0).
@@ -49,6 +51,19 @@ if [[ -f "$ICON_SRC" ]] && command -v iconutil >/dev/null 2>&1 && command -v sip
   iconutil -c icns "$ICONSET_DIR" -o "$RESOURCES_DIR/AppIcon.icns"
   rm -rf "$(dirname "$ICONSET_DIR")"
   echo "Embedded app icon"
+fi
+
+# Regenerate the MenuBarIcon imageset from Resources/McDuck-menubar.png (the
+# 1x/2x/3x sizes) so the menu bar shows that image, then compile the catalog.
+MENUBAR_SRC="$ROOT_DIR/Resources/McDuck-menubar.png"
+IMGSET="$ROOT_DIR/Resources/Assets.xcassets/MenuBarIcon.imageset"
+if [[ -f "$MENUBAR_SRC" ]] && [[ -d "$IMGSET" ]] && command -v sips >/dev/null 2>&1; then
+  # 24pt at 1x/2x/3x (icon-18/36/54.png are the 1x/2x/3x slot filenames).
+  for entry in "24 icon-18.png" "48 icon-36.png" "72 icon-54.png"; do
+    set -- $entry
+    sips -z "$1" "$1" "$MENUBAR_SRC" --out "$IMGSET/$2" >/dev/null
+  done
+  echo "Updated menu bar icon from McDuck-menubar.png"
 fi
 
 # Compile the asset catalog into the app's main bundle as Assets.car so named

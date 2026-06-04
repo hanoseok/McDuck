@@ -152,4 +152,24 @@ shasum -a 256 -c McDuck-<tag>-checksums.sha256
 - **"손상되어 열 수 없음" / "확인되지 않은 개발자"** → 공증 미적용 때문. A·C 방식 또는 수동 `xattr`로 해결.
 - **첫 실행 시 ccusage 못 찾음** → GUI 앱은 PATH가 최소화됩니다. 앱은 `~/.bun/bin`, `/opt/homebrew/bin` 등을 탐색하고 서브프로세스 PATH를 보강합니다. 그래도 없으면 팝오버의 Install 버튼으로 설치하세요.
 - **사용량이 안 뜨거나 파싱 오류** → ccusage 출력 스키마는 버전마다 다릅니다(`date`/`period`, `breakdown`/`modelBreakdowns`). 파서는 누락에 관대하며, 디코딩 실패 시 원본 출력 일부를 담은 에러를 표시합니다.
-</content>
+- **앱이 실행 즉시 종료(메뉴바에 안 뜸)** → `Bundle.module`(SwiftPM 리소스 번들)이 수동 조립 `.app`에서 번들을 못 찾아 `Fatal error`로 크래시한 사례. 리소스는 `Bundle.main`/`Assets.car`에서 로드해야 합니다(아래 8장). 진단: `/Applications/McDuck.app/Contents/MacOS/McDuck`을 터미널에서 직접 실행해 에러 출력 확인.
+
+---
+
+## 8. 아이콘 / 에셋 / 리소스 로딩
+
+이미지는 `Resources/`에 두고 `build-app.sh`가 앱 번들에 넣습니다. **`Bundle.module`은 사용하지 않습니다.**
+
+| 용도 | 소스 | 처리 | 런타임 로드 |
+| --- | --- | --- | --- |
+| 앱 아이콘(Finder/설치 마법사) | `Resources/AppIcon.png` | `iconutil` → `AppIcon.icns` | `Info.plist`의 `CFBundleIconFile=AppIcon` |
+| 타이틀(팝오버 헤더) | `Resources/McDuck-title.png` | `Contents/Resources/`로 복사 | `Bundle.main` (`AppImages.titleIcon`) |
+| 메뉴바 | `Resources/McDuck-menubar.png` | `sips`로 imageset(1x/2x/3x) 재생성 → `actool`로 `Assets.car` 컴파일 | `MenuBarExtra("McDuck", image: "MenuBarIcon")` |
+
+핵심 주의:
+
+- **`Bundle.module` 금지** — SwiftPM 접근자가 수동 `.app`에서 번들을 못 찾아 크래시. `Bundle.main`(=`Contents/Resources`) 또는 컴파일된 `Assets.car`에서 로드.
+- **`swift build`는 `.xcassets`를 컴파일하지 않음** — `build-app.sh`에서 `actool`로 `Assets.car` 생성.
+- **메뉴바 커스텀 아이콘은 이름 있는 에셋 이미지**(`MenuBarExtra(image:)`)를 사용. `Image(nsImage:)`는 메뉴바 라벨에서 안 보일 수 있음.
+- **메뉴바 아이콘 크기 조정**: `build-app.sh`의 imageset 생성 px(= point × scale)만 변경. 현재 24pt(24/48/72px). macOS 메뉴바 높이(~22pt) 한계로 그 이상은 줄여서 표시될 수 있음.
+- **버튼 Liquid Glass**: `mcDuckGlassButton()`(macOS 26 `.glass`, 이전 `.bordered`). 차트 호버 툴팁은 차트 annotation이 아니라 최상위 `.overlay`로 그려 범례 위에 불투명 표시.
