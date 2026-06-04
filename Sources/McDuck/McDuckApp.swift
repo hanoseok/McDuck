@@ -12,8 +12,9 @@ struct McDuckApp: App {
                     store.startAutoRefresh()
                 }
         } label: {
-            Image(nsImage: AppImages.menuBar)
-                .renderingMode(.original)
+            // A named asset-catalog image renders reliably in the menu bar,
+            // unlike Image(nsImage:) which often does not appear there.
+            Image("MenuBarIcon", bundle: .module)
         }
         .menuBarExtraStyle(.window)
     }

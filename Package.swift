@@ -16,7 +16,8 @@ let package = Package(
             name: "McDuck",
             dependencies: ["McDuckCore"],
             resources: [
-                .process("Resources/AppIcon.png")
+                .process("Resources/AppIcon.png"),
+                .process("Resources/Assets.xcassets")
             ]
         ),
         .testTarget(
