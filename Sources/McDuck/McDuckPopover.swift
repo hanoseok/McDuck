@@ -9,7 +9,7 @@ struct McDuckPopover: View {
         McDuckGlassContainer {
             VStack(alignment: .leading, spacing: 14) {
                 header
-                CappedScroll(maxHeight: 560) {
+                CappedScroll(maxHeight: 600) {
                     content
                 }
                 footer
@@ -229,40 +229,49 @@ private struct TokenBarChart: View {
     }
 }
 
-/// GitHub-style year picker. "Recent" is the rolling 12-month view; the years
-/// run from the current year back to `UsageStore.earliestYear`.
+/// GitHub-style year picker. No explicit "Recent" entry: when no year is
+/// selected the heatmap shows the rolling last-12-months view. Tapping the
+/// selected year again clears the selection back to that default.
 private struct YearSelector: View {
     let years: [Int]
     @Binding var selectedYear: Int?
 
     var body: some View {
         VStack(spacing: 4) {
-            chip(title: "Recent", isSelected: selectedYear == nil) {
-                selectedYear = nil
-            }
             ForEach(years, id: \.self) { year in
-                chip(title: String(year), isSelected: selectedYear == year) {
-                    selectedYear = year
-                }
+                chip(year)
             }
         }
-        .frame(width: 48)
+        .frame(width: 40)
     }
 
-    private func chip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.caption2.weight(isSelected ? .semibold : .regular))
-                .lineLimit(1)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
-                .background {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(isSelected ? Color.accentColor : Color.secondary.opacity(0.12))
-                }
-                .foregroundStyle(isSelected ? Color.white : Color.primary)
+    private func chip(_ year: Int) -> some View {
+        let isSelected = selectedYear == year
+        return Button {
+            selectedYear = isSelected ? nil : year
+        } label: {
+            chipLabel(year, isSelected: isSelected)
         }
         .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func chipLabel(_ year: Int, isSelected: Bool) -> some View {
+        let label = Text(String(year))
+            .font(.caption2.weight(isSelected ? .semibold : .regular))
+            .lineLimit(1)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+            .foregroundStyle(isSelected ? Color.white : Color.primary)
+
+        if isSelected {
+            label.background {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.accentColor)
+            }
+        } else {
+            label.mcDuckGlass(cornerRadius: 6)
+        }
     }
 }
 

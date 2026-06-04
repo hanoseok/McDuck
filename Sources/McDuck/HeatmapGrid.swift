@@ -5,8 +5,8 @@ struct HeatmapGrid: View {
     let cells: [HeatmapCell]
     @Binding var selectedDateString: String?
 
-    private let cellSize: CGFloat = 12
-    private let spacing: CGFloat = 3
+    private let cellSize: CGFloat = 6
+    private let spacing: CGFloat = 1
 
     private static let monthFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -60,7 +60,7 @@ struct HeatmapGrid: View {
     @ViewBuilder
     private func cellView(_ cell: HeatmapCell) -> some View {
         if cell.isPlaceholder {
-            RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
                 .fill(Color.clear)
                 .frame(width: cellSize, height: cellSize)
         } else {
@@ -68,13 +68,13 @@ struct HeatmapGrid: View {
             Button {
                 selectedDateString = cell.dateString
             } label: {
-                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
                     .fill(color(for: cell.intensity))
                     .frame(width: cellSize, height: cellSize)
                     .overlay {
                         if isSelected {
-                            RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                                .stroke(.primary, lineWidth: 1.2)
+                            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                                .stroke(.primary, lineWidth: 1)
                         }
                     }
             }
