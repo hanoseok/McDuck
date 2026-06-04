@@ -98,6 +98,9 @@ jobs:
             --install-location / \
             --scripts scripts/pkg-scripts \
             "$PKG"
+          # Stable, version-independent name so the installer can fetch it via
+          # /releases/latest/download/McDuck.pkg without calling the GitHub API.
+          cp "$PKG" "McDuck.pkg"
 
           # --- .zip (app + double-clickable installer script) ---
           STAGE="McDuck-$TAG"
@@ -126,6 +129,7 @@ jobs:
           # for a tag push the tag already exists and --target is ignored.
           gh release create "${{ steps.version.outputs.tag }}" \
             "${{ steps.package.outputs.pkg }}" \
+            "McDuck.pkg" \
             "${{ steps.package.outputs.artifact }}" \
             "${{ steps.package.outputs.checksums }}" \
             "scripts/remote-install.sh" \
