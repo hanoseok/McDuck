@@ -13,6 +13,7 @@ struct McDuckApp: App {
                 }
         } label: {
             Image(nsImage: AppImages.menuBar)
+                .renderingMode(.original)
         }
         .menuBarExtraStyle(.window)
     }
