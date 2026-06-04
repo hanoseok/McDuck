@@ -48,14 +48,18 @@ final class UsageStore {
 
     struct DashboardData: Equatable {
         let report: UsageReport
-        let cells: [HeatmapCell]
     }
 
     private let client: CcusageClient
     private let heatmapBuilder: HeatmapBuilder
 
+    /// Earliest year offered in the heatmap year selector.
+    static let earliestYear = 2023
+
     var phase: Phase = .idle
     var selectedDateString: String?
+    /// nil = rolling "recent 12 months" view; otherwise a specific calendar year.
+    var selectedYear: Int?
     var isInstalling = false
     var setupLog: String?
     var lastUpdated: Date?
@@ -74,6 +78,35 @@ final class UsageStore {
         } else {
             nil
         }
+    }
+
+    /// Years offered in the selector, newest first, from the current year back to `earliestYear`.
+    var availableYears: [Int] {
+        let current = Calendar(identifier: .gregorian).component(.year, from: Date())
+        guard current >= Self.earliestYear else {
+            return [current]
+        }
+        return Array(stride(from: current, through: Self.earliestYear, by: -1))
+    }
+
+    /// Heatmap cells for the active selection (recent 12 months, or a chosen year).
+    var heatmapCells: [HeatmapCell] {
+        guard let report = dashboard?.report else {
+            return []
+        }
+
+        if let year = selectedYear {
+            return heatmapBuilder.year(days: report.days, year: year)
+        }
+
+        return heatmapBuilder.recentMonths(days: report.days, months: 12)
+    }
+
+    var heatmapRangeTitle: String {
+        if let year = selectedYear {
+            return String(year)
+        }
+        return "Last 12 months"
     }
 
     var selectedDay: UsageDay? {
@@ -150,8 +183,7 @@ final class UsageStore {
             }
 
             selectedDateString = selectedDateString ?? report.days.last?.dateString
-            let cells = heatmapBuilder.build(days: report.days, weeks: 12)
-            phase = .loaded(DashboardData(report: report, cells: cells))
+            phase = .loaded(DashboardData(report: report))
             lastUpdated = Date()
         } catch {
             phase = .error(error.localizedDescription)

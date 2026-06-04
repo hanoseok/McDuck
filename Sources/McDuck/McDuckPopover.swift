@@ -9,7 +9,9 @@ struct McDuckPopover: View {
         McDuckGlassContainer {
             VStack(alignment: .leading, spacing: 14) {
                 header
-                content
+                CappedScroll(maxHeight: 560) {
+                    content
+                }
                 footer
             }
             .padding(16)
@@ -97,12 +99,15 @@ struct McDuckPopover: View {
                     Text("Daily usage")
                         .font(.subheadline.weight(.semibold))
                     Spacer()
-                    Text("Last 12 weeks")
+                    Text(store.heatmapRangeTitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                HeatmapGrid(cells: dashboard.cells, selectedDateString: $store.selectedDateString)
+                HStack(alignment: .top, spacing: 10) {
+                    HeatmapGrid(cells: store.heatmapCells, selectedDateString: $store.selectedDateString)
+                    YearSelector(years: store.availableYears, selectedYear: $store.selectedYear)
+                }
             }
             .padding(12)
             .mcDuckGlass(cornerRadius: 14)
@@ -221,5 +226,71 @@ private struct TokenBarChart: View {
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
         .accessibilityLabel("Recent token usage bar chart")
+    }
+}
+
+/// GitHub-style year picker. "Recent" is the rolling 12-month view; the years
+/// run from the current year back to `UsageStore.earliestYear`.
+private struct YearSelector: View {
+    let years: [Int]
+    @Binding var selectedYear: Int?
+
+    var body: some View {
+        VStack(spacing: 4) {
+            chip(title: "Recent", isSelected: selectedYear == nil) {
+                selectedYear = nil
+            }
+            ForEach(years, id: \.self) { year in
+                chip(title: String(year), isSelected: selectedYear == year) {
+                    selectedYear = year
+                }
+            }
+        }
+        .frame(width: 48)
+    }
+
+    private func chip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.caption2.weight(isSelected ? .semibold : .regular))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+                .background {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(isSelected ? Color.accentColor : Color.secondary.opacity(0.12))
+                }
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct HeatmapHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+/// Vertically scrolls its content only when it would exceed `maxHeight`,
+/// otherwise sizes to fit so the popover doesn't leave empty space.
+private struct CappedScroll<Content: View>: View {
+    let maxHeight: CGFloat
+    @ViewBuilder var content: Content
+
+    @State private var contentHeight: CGFloat = 0
+
+    var body: some View {
+        ScrollView(.vertical, showsIndicators: true) {
+            content
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: HeatmapHeightKey.self, value: proxy.size.height)
+                    }
+                )
+        }
+        .frame(height: min(contentHeight == 0 ? maxHeight : contentHeight, maxHeight))
+        .onPreferenceChange(HeatmapHeightKey.self) { contentHeight = $0 }
     }
 }
