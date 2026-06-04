@@ -9,9 +9,7 @@ struct McDuckPopover: View {
         McDuckGlassContainer {
             VStack(alignment: .leading, spacing: 14) {
                 header
-                CappedScroll(maxHeight: 600) {
-                    content
-                }
+                content
                 footer
             }
             .padding(16)
@@ -97,7 +95,7 @@ struct McDuckPopover: View {
             summaryStrip
 
             TokenBarChart(days: store.filteredDays)
-                .frame(height: 150)
+                .frame(height: 120)
                 .padding(12)
                 .mcDuckGlass(cornerRadius: 14)
 
@@ -259,6 +257,8 @@ private struct MetricPill: View {
 private struct TokenBarChart: View {
     let days: [UsageDay]
 
+    @State private var hoveredDay: Date?
+
     private struct Segment: Identifiable {
         var id: String { "\(date.timeIntervalSince1970)-\(model)" }
         let date: Date
@@ -279,13 +279,31 @@ private struct TokenBarChart: View {
         }
     }
 
+    private var segmentsByDay: [Date: [Segment]] {
+        Dictionary(grouping: segments) { Calendar(identifier: .gregorian).startOfDay(for: $0.date) }
+    }
+
     var body: some View {
-        Chart(segments) { segment in
-            BarMark(
-                x: .value("Date", segment.date, unit: .day),
-                y: .value("Tokens", segment.tokens)
-            )
-            .foregroundStyle(by: .value("Model", segment.model))
+        Chart {
+            ForEach(segments) { segment in
+                BarMark(
+                    x: .value("Date", segment.date, unit: .day),
+                    y: .value("Tokens", segment.tokens)
+                )
+                .foregroundStyle(by: .value("Model", segment.model))
+            }
+
+            if let hoveredDay, let items = segmentsByDay[hoveredDay] {
+                RuleMark(x: .value("Date", hoveredDay, unit: .day))
+                    .foregroundStyle(.secondary.opacity(0.3))
+                    .annotation(
+                        position: .top,
+                        spacing: 0,
+                        overflowResolution: .init(x: .fit(to: .chart), y: .disabled)
+                    ) {
+                        tooltip(date: hoveredDay, items: items)
+                    }
+            }
         }
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 6)) { value in
@@ -307,10 +325,61 @@ private struct TokenBarChart: View {
                 }
             }
         }
-        .chartXAxisLabel("Date")
-        .chartYAxisLabel("Tokens")
-        .chartLegend(position: .bottom, alignment: .leading)
+        .chartLegend(position: .top, alignment: .leading)
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                Rectangle()
+                    .fill(.clear)
+                    .contentShape(Rectangle())
+                    .onContinuousHover { phase in
+                        switch phase {
+                        case .active(let location):
+                            hoveredDay = day(at: location, proxy: proxy, geo: geo)
+                        case .ended:
+                            hoveredDay = nil
+                        }
+                    }
+            }
+        }
         .accessibilityLabel("Token usage by model and day")
+    }
+
+    private func day(at location: CGPoint, proxy: ChartProxy, geo: GeometryProxy) -> Date? {
+        guard let plotFrame = proxy.plotFrame else {
+            return nil
+        }
+        let xInPlot = location.x - geo[plotFrame].origin.x
+        guard let date: Date = proxy.value(atX: xInPlot) else {
+            return nil
+        }
+        let startOfDay = Calendar(identifier: .gregorian).startOfDay(for: date)
+        return segmentsByDay[startOfDay] != nil ? startOfDay : nil
+    }
+
+    private func tooltip(date: Date, items: [Segment]) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(date, format: .dateTime.year().month().day())
+                .font(.caption2.weight(.semibold))
+
+            ForEach(items.sorted { $0.tokens > $1.tokens }) { item in
+                HStack(spacing: 10) {
+                    Text(item.model)
+                        .font(.caption2)
+                        .lineLimit(1)
+                    Spacer()
+                    Text(Formatters.compact(item.tokens))
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(8)
+        .frame(minWidth: 150, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(.secondary.opacity(0.25))
+        }
     }
 }
 
@@ -360,31 +429,3 @@ private struct YearSelector: View {
     }
 }
 
-private struct HeatmapHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
-/// Vertically scrolls its content only when it would exceed `maxHeight`,
-/// otherwise sizes to fit so the popover doesn't leave empty space.
-private struct CappedScroll<Content: View>: View {
-    let maxHeight: CGFloat
-    @ViewBuilder var content: Content
-
-    @State private var contentHeight: CGFloat = 0
-
-    var body: some View {
-        ScrollView(.vertical, showsIndicators: true) {
-            content
-                .background(
-                    GeometryReader { proxy in
-                        Color.clear.preference(key: HeatmapHeightKey.self, value: proxy.size.height)
-                    }
-                )
-        }
-        .frame(height: min(contentHeight == 0 ? maxHeight : contentHeight, maxHeight))
-        .onPreferenceChange(HeatmapHeightKey.self) { contentHeight = $0 }
-    }
-}

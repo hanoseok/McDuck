@@ -132,6 +132,17 @@ extension CcusageParser {
     /// active span is `actualEndTime - startTime` (falling back to `endTime`).
     public func parseBlocksJSON(_ data: Data) throws -> [String: TimeInterval] {
         let payload = try JSONDecoder().decode(RawBlocksPayload.self, from: data)
+
+        // ISO8601DateFormatter isn't Sendable, so keep it local (not a shared
+        // static) to stay concurrency-safe under Swift 6.
+        let isoWithFraction = ISO8601DateFormatter()
+        isoWithFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let isoPlain = ISO8601DateFormatter()
+        isoPlain.formatOptions = [.withInternetDateTime]
+        func parseISO(_ string: String) -> Date? {
+            isoWithFraction.date(from: string) ?? isoPlain.date(from: string)
+        }
+
         var result: [String: TimeInterval] = [:]
 
         for block in payload.blocks ?? [] {
@@ -139,12 +150,12 @@ extension CcusageParser {
                 continue
             }
             guard let startString = block.startTime,
-                  let start = Self.parseISODate(startString) else {
+                  let start = parseISO(startString) else {
                 continue
             }
 
-            let end = block.actualEndTime.flatMap(Self.parseISODate)
-                ?? block.endTime.flatMap(Self.parseISODate)
+            let end = block.actualEndTime.flatMap(parseISO)
+                ?? block.endTime.flatMap(parseISO)
                 ?? start
             let duration = max(end.timeIntervalSince(start), 0)
             guard duration > 0 else {
@@ -157,22 +168,6 @@ extension CcusageParser {
 
         return result
     }
-
-    static func parseISODate(_ string: String) -> Date? {
-        isoWithFraction.date(from: string) ?? isoPlain.date(from: string)
-    }
-
-    private static let isoWithFraction: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
-
-    private static let isoPlain: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter
-    }()
 }
 
 private struct RawBlocksPayload: Decodable {
