@@ -102,15 +102,19 @@ push 이벤트로 워크플로가 macOS 러너(`runs-on: macos-26`)에서 다음
 
 ### 4. 설치 / 실행
 
-zip 안에는 `McDuck.app`과 **`Install McDuck.command`** 설치 스크립트(`scripts/install.command`)가 함께 들어 있습니다. 설치 스크립트는 실행 중인 McDuck 종료 → `/Applications` 설치 → quarantine 제거 → 실행까지 한 번에 처리합니다.
+릴리스에는 세 가지가 첨부됩니다: `McDuck-<tag>.pkg`(설치 패키지), `McDuck-<tag>-macos.zip`(앱 + 설치 스크립트), `McDuck-<tag>-checksums.sha256`.
+
+**권장: `.pkg` 더블클릭.** `McDuck-<tag>.pkg`를 더블클릭하면 macOS 설치 마법사 창이 떠서 `/Applications`에 설치하고, `postinstall`(`scripts/pkg-scripts/postinstall`)이 실행 중인 McDuck 종료 → quarantine 제거 → 실행까지 처리합니다.
+
+> 앱·pkg 모두 공증(notarization)이 안 되어 있어, 다운로드한 pkg를 처음 열 때 Gatekeeper가 막을 수 있습니다. 그때는 **우클릭 → 열기**, 또는 한 번만 `xattr -dr com.apple.quarantine McDuck-<tag>.pkg` 후 더블클릭하세요.
+
+**대안: zip + 설치 스크립트.** zip 안에는 `McDuck.app`과 `Install McDuck.command`가 들어 있습니다.
 
 ```bash
 cd ~/Downloads
 unzip -o McDuck-<tag>-macos.zip
 bash "McDuck-<tag>/Install McDuck.command"   # quarantine 영향 없이 실행
 ```
-
-> Finder에서 `Install McDuck.command`를 더블클릭해도 되지만, 다운로드 파일은 quarantine이 붙어 첫 실행 시 경고가 날 수 있습니다. 위처럼 `bash`로 실행하면 우회됩니다.
 
 수동으로 하려면 ad-hoc 서명만 된 앱이라 quarantine을 직접 제거해야 합니다.
 

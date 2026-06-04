@@ -82,20 +82,40 @@ jobs:
         id: package
         run: |
           TAG="${{ steps.version.outputs.tag }}"
+          SHORT="${{ steps.version.outputs.short }}"
+
+          # --- .pkg installer (double-click -> macOS Installer GUI) ---
+          PKGROOT="pkgroot"
+          rm -rf "$PKGROOT"
+          mkdir -p "$PKGROOT/Applications"
+          cp -R dist/McDuck.app "$PKGROOT/Applications/McDuck.app"
+          chmod +x scripts/pkg-scripts/postinstall
+          PKG="McDuck-$TAG.pkg"
+          pkgbuild \
+            --root "$PKGROOT" \
+            --identifier io.github.hanoseok.McDuck \
+            --version "$SHORT" \
+            --install-location / \
+            --scripts scripts/pkg-scripts \
+            "$PKG"
+
+          # --- .zip (app + double-clickable installer script) ---
           STAGE="McDuck-$TAG"
-          # Stage the app together with a double-clickable installer so users
-          # get quit + install + de-quarantine + open in one step.
           rm -rf "$STAGE"
           mkdir -p "$STAGE"
           cp -R dist/McDuck.app "$STAGE/McDuck.app"
           cp scripts/install.command "$STAGE/Install McDuck.command"
           chmod +x "$STAGE/Install McDuck.command"
-
           ARTIFACT="McDuck-$TAG-macos.zip"
           # ditto preserves the macOS bundle structure and metadata.
           ditto -c -k --sequesterRsrc --keepParent "$STAGE" "$ARTIFACT"
-          shasum -a 256 "$ARTIFACT" > "$ARTIFACT.sha256"
+
+          CHECKSUMS="McDuck-$TAG-checksums.sha256"
+          shasum -a 256 "$PKG" "$ARTIFACT" > "$CHECKSUMS"
+
+          echo "pkg=$PKG" >> "$GITHUB_OUTPUT"
           echo "artifact=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "checksums=$CHECKSUMS" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         if: steps.gate.outputs.release == 'true'
@@ -105,8 +125,9 @@ jobs:
           # --target creates the tag on this commit for branch/manual runs;
           # for a tag push the tag already exists and --target is ignored.
           gh release create "${{ steps.version.outputs.tag }}" \
+            "${{ steps.package.outputs.pkg }}" \
             "${{ steps.package.outputs.artifact }}" \
-            "${{ steps.package.outputs.artifact }}.sha256" \
+            "${{ steps.package.outputs.checksums }}" \
             --title "McDuck ${{ steps.version.outputs.tag }}" \
             --target "${{ github.sha }}" \
             --generate-notes

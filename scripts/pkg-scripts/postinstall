@@ -1,0 +1,22 @@
+#!/bin/bash
+# Runs after the installer copies McDuck.app into /Applications.
+# Quits any running copy, clears the Gatekeeper quarantine flag, and launches
+# the app in the logged-in user's GUI session.
+APP="/Applications/McDuck.app"
+
+# Quit a running instance so the freshly installed binary is used.
+osascript -e 'tell application "McDuck" to quit' >/dev/null 2>&1 || true
+pkill -x McDuck 2>/dev/null || true
+
+# Allow Gatekeeper to launch the (ad-hoc signed, un-notarized) app.
+xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
+
+# postinstall runs as root; open the app as the console user instead.
+uid="$(stat -f '%u' /dev/console 2>/dev/null)"
+if [ -n "$uid" ] && [ "$uid" != "0" ]; then
+  launchctl asuser "$uid" open "$APP" >/dev/null 2>&1 || true
+else
+  open "$APP" >/dev/null 2>&1 || true
+fi
+
+exit 0
