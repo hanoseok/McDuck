@@ -8,7 +8,7 @@ struct HeatmapGrid: View {
     /// rolling view; leading left-aligns a selected calendar year (Jan first).
     var scrollAnchor: UnitPoint = .trailing
 
-    private let cellSize: CGFloat = 6
+    private let cellSize: CGFloat = 7
     private let spacing: CGFloat = 1
 
     private static let monthFormatter: DateFormatter = {

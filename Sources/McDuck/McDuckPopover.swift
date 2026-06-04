@@ -109,15 +109,14 @@ struct McDuckPopover: View {
                         .foregroundStyle(.secondary)
                 }
 
-                HStack(alignment: .top, spacing: 10) {
-                    HeatmapGrid(
-                        cells: store.heatmapCells,
-                        selectedDateString: $store.selectedDateString,
-                        scrollAnchor: store.selectedYear == nil ? .trailing : .leading
-                    )
-                    .id(store.selectedYear)
-                    YearSelector(years: store.availableYears, selectedYear: $store.selectedYear)
-                }
+                YearSelector(years: store.availableYears, selectedYear: $store.selectedYear)
+
+                HeatmapGrid(
+                    cells: store.heatmapCells,
+                    selectedDateString: $store.selectedDateString,
+                    scrollAnchor: store.selectedYear == nil ? .trailing : .leading
+                )
+                .id(store.selectedYear)
             }
             .padding(12)
             .mcDuckGlass(cornerRadius: 14)
@@ -418,24 +417,27 @@ private struct TokenBarChart: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(.secondary.opacity(0.25))
         }
+        // Flatten into one opaque layer so nothing shows through the tooltip.
+        .compositingGroup()
         .shadow(color: .black.opacity(0.18), radius: 6, y: 2)
     }
 }
 
-/// GitHub-style year picker. No explicit "Recent" entry: when no year is
-/// selected the heatmap shows the rolling last-12-months view. Tapping the
-/// selected year again clears the selection back to that default.
+/// GitHub-style year picker laid out horizontally above the heatmap. No
+/// explicit "Recent" entry: when no year is selected the heatmap shows the
+/// rolling last-12-months view. Tapping the selected year clears it back to
+/// that default.
 private struct YearSelector: View {
     let years: [Int]
     @Binding var selectedYear: Int?
 
     var body: some View {
-        VStack(spacing: 4) {
+        HStack(spacing: 6) {
             ForEach(years, id: \.self) { year in
                 chip(year)
             }
+            Spacer(minLength: 0)
         }
-        .frame(width: 40)
     }
 
     private func chip(_ year: Int) -> some View {
@@ -453,8 +455,8 @@ private struct YearSelector: View {
         let label = Text(String(year))
             .font(.caption2.weight(isSelected ? .semibold : .regular))
             .lineLimit(1)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
+            .padding(.vertical, 3)
+            .padding(.horizontal, 10)
             .foregroundStyle(isSelected ? Color.white : Color.primary)
 
         if isSelected {
