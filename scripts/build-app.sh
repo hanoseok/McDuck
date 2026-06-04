@@ -19,6 +19,12 @@ cp "$BIN_DIR/McDuck" "$MACOS_DIR/McDuck"
 cp "$ROOT_DIR/Resources/Info.plist" "$CONTENTS_DIR/Info.plist"
 chmod +x "$MACOS_DIR/McDuck"
 
+# Copy SwiftPM resource bundles (e.g. McDuck_McDuck.bundle) into the app so
+# Bundle.module resolves the bundled image at runtime.
+for bundle in "$BIN_DIR"/*.bundle; do
+  [[ -e "$bundle" ]] && cp -R "$bundle" "$RESOURCES_DIR/"
+done
+
 # Stamp the app bundle with a release version when provided.
 # MCDUCK_VERSION sets CFBundleShortVersionString (e.g. 1.2.0).
 # MCDUCK_BUILD sets CFBundleVersion (e.g. a build number); defaults to 1.
@@ -33,7 +39,7 @@ fi
 
 # App icon: build AppIcon.icns from Resources/AppIcon.png (a 1024x1024 PNG)
 # when present. Info.plist references it via CFBundleIconFile=AppIcon.
-ICON_SRC="$ROOT_DIR/Resources/AppIcon.png"
+ICON_SRC="$ROOT_DIR/Sources/McDuck/Resources/AppIcon.png"
 if [[ -f "$ICON_SRC" ]] && command -v iconutil >/dev/null 2>&1 && command -v sips >/dev/null 2>&1; then
   ICONSET_DIR="$(mktemp -d)/AppIcon.iconset"
   mkdir -p "$ICONSET_DIR"

@@ -5,12 +5,14 @@ struct McDuckApp: App {
     @State private var store = UsageStore()
 
     var body: some Scene {
-        MenuBarExtra("McDuck", systemImage: "chart.bar.xaxis") {
+        MenuBarExtra {
             McDuckPopover(store: store)
                 .frame(width: 480)
                 .task {
                     store.startAutoRefresh()
                 }
+        } label: {
+            Image(nsImage: AppImages.menuBar)
         }
         .menuBarExtraStyle(.window)
     }

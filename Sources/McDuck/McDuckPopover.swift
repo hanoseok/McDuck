@@ -19,11 +19,20 @@ struct McDuckPopover: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Image(systemName: "chart.bar.xaxis")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.tint)
-                .frame(width: 30, height: 30)
-                .mcDuckGlass(cornerRadius: 9)
+            Group {
+                if let icon = AppImages.appIcon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .scaledToFit()
+                        .padding(2)
+                } else {
+                    Image(systemName: "chart.bar.xaxis")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.tint)
+                }
+            }
+            .frame(width: 30, height: 30)
+            .mcDuckGlass(cornerRadius: 9)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("McDuck")
