@@ -2,13 +2,12 @@
 
 McDuck is a native macOS menu bar app for viewing local LLM token usage from [`ccusage`](https://github.com/ryoppippi/ccusage).
 
-It runs as a menu bar utility, opens a SwiftUI popover from the status bar icon, and shows daily token usage in a GitHub-style heatmap. The first version targets the current macOS 26 SDK and uses SwiftUI `MenuBarExtra`, Swift Charts, and Liquid Glass.
+It runs as a menu bar utility, opens a SwiftUI popover from the status bar icon, and shows daily token usage in a GitHub-style heatmap. It uses SwiftUI `MenuBarExtra`, Swift Charts, and Liquid Glass.
 
 ## Requirements
 
-- macOS 26 or later
-- Xcode 26.5 or later
-- Swift 6.3 or later
+- macOS 15 (Sequoia) or later — Liquid Glass is used on macOS 26+, and falls back to a material on earlier versions
+- Xcode 26 or later (Swift 6.2+ toolchain)
 - Bun, installed by McDuck setup when the user presses Install
 - `ccusage`, bootstrapped through `bunx ccusage`
 
@@ -51,7 +50,11 @@ open dist/McDuck.app
 Install the latest release with one command (no `xattr` / System Settings — just the admin password):
 
 ```bash
-curl -fsSL https://github.com/hanoseok/McDuck/releases/latest/download/remote-install.sh | bash
+# latest
+curl -fsSL https://github.com/hanoseok/McDuck/releases/latest/download/install.sh | bash
+
+# a specific version (pass the tag)
+curl -fsSL https://github.com/hanoseok/McDuck/releases/download/v0.0.20/install.sh | bash -s -- v0.0.20
 ```
 
 Or download `McDuck-<tag>.pkg` from the [Releases](https://github.com/hanoseok/McDuck/releases) page and double-click it.

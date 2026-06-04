@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "McDuck",
     platforms: [
-        .macOS(.v26)
+        .macOS(.v15)
     ],
     products: [
         .library(name: "McDuckCore", targets: ["McDuckCore"]),

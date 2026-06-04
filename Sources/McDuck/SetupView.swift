@@ -5,6 +5,8 @@ struct SetupView: View {
     let isInstalling: Bool
     let log: String?
     let action: () -> Void
+    var secondaryTitle: String? = nil
+    var secondaryAction: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -26,11 +28,18 @@ struct SetupView: View {
             Button {
                 action()
             } label: {
-                Label(requirement.actionTitle, systemImage: "arrow.down.circle")
+                Label(requirement.actionTitle, systemImage: requirement.actionSystemImage)
                     .frame(maxWidth: .infinity)
             }
             .controlSize(.large)
             .disabled(isInstalling)
+
+            if let secondaryTitle, let secondaryAction {
+                Button(secondaryTitle, action: secondaryAction)
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                    .disabled(isInstalling)
+            }
 
             if isInstalling {
                 ProgressView()

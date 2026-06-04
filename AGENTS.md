@@ -27,7 +27,7 @@ McDuck은 `bunx ccusage` 출력을 읽어 macOS 상태바 팝오버에서 LLM to
 - Swift Charts
 - Liquid Glass: `GlassEffectContainer`, `glassEffect`
 - Swift Testing
-- 플랫폼: macOS 26 (`Package.swift`의 `.macOS(.v26)`)
+- 플랫폼: macOS 15 (Sequoia) 이상 (`Package.swift`의 `.macOS(.v15)`). Liquid Glass는 macOS 26+에서만 적용되고, 이전 버전에선 `#available` 체크로 material로 대체됩니다.
 
 ## 로컬 빌드와 검증
 
@@ -105,12 +105,12 @@ push 이벤트로 워크플로가 macOS 러너(`runs-on: macos-26`)에서 다음
 **가장 쉬운 방법 — 터미널 원라이너(경고 없음):** `curl`로 받은 파일에는 quarantine이 붙지 않아 Gatekeeper가 막지 않습니다. `xattr`·시스템 설정 없이 관리자 암호만 입력하면 됩니다.
 
 ```bash
-curl -fsSL https://github.com/hanoseok/McDuck/releases/latest/download/remote-install.sh | bash
+curl -fsSL https://github.com/hanoseok/McDuck/releases/latest/download/install.sh | bash
 ```
 
-이 스크립트(`scripts/remote-install.sh`)는 최신 릴리스의 `.pkg`를 curl로 받아 `sudo installer`로 설치합니다(설치 후 postinstall이 quarantine 제거·실행).
+이 스크립트(`scripts/install.sh`)는 최신 릴리스의 `.pkg`를 curl로 받아 `sudo installer`로 설치합니다(설치 후 postinstall이 quarantine 제거·실행).
 
-릴리스에는 네 가지가 첨부됩니다: `McDuck-<tag>.pkg`(설치 패키지), `McDuck-<tag>-macos.zip`(앱 + 설치 스크립트), `remote-install.sh`(원라이너), `McDuck-<tag>-checksums.sha256`.
+릴리스에는 네 가지가 첨부됩니다: `McDuck-<tag>.pkg`(설치 패키지), `McDuck-<tag>-macos.zip`(앱 + 설치 스크립트), `install.sh`(원라이너), `McDuck-<tag>-checksums.sha256`.
 
 **권장: `.pkg` 더블클릭.** `McDuck-<tag>.pkg`를 더블클릭하면 macOS 설치 마법사 창이 떠서 `/Applications`에 설치하고, `postinstall`(`scripts/pkg-scripts/postinstall`)이 실행 중인 McDuck 종료 → quarantine 제거 → 실행까지 처리합니다.
 

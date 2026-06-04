@@ -132,7 +132,7 @@ jobs:
             "McDuck.pkg" \
             "${{ steps.package.outputs.artifact }}" \
             "${{ steps.package.outputs.checksums }}" \
-            "scripts/remote-install.sh" \
+            "scripts/install.sh" \
             --title "McDuck ${{ steps.version.outputs.tag }}" \
             --target "${{ github.sha }}" \
             --generate-notes
