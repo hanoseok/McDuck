@@ -311,6 +311,7 @@ private struct TokenBarChart: View {
     let days: [UsageDay]
 
     @State private var hoveredDay: Date?
+    @State private var hoverLocation: CGPoint?
     @Environment(\.colorScheme) private var colorScheme
 
     /// A fully opaque, fixed RGB color (not a system/dynamic color). System
@@ -354,16 +355,9 @@ private struct TokenBarChart: View {
                 .foregroundStyle(by: .value("Model", segment.model))
             }
 
-            if let hoveredDay, let items = segmentsByDay[hoveredDay] {
+            if let hoveredDay {
                 RuleMark(x: .value("Date", hoveredDay, unit: .day))
-                    .foregroundStyle(.secondary.opacity(0.3))
-                    .annotation(
-                        position: .top,
-                        spacing: 0,
-                        overflowResolution: .init(x: .fit(to: .chart), y: .disabled)
-                    ) {
-                        tooltip(date: hoveredDay, items: items)
-                    }
+                    .foregroundStyle(.secondary.opacity(0.35))
             }
         }
         .chartXAxis {
@@ -396,10 +390,27 @@ private struct TokenBarChart: View {
                         switch phase {
                         case .active(let location):
                             hoveredDay = day(at: location, proxy: proxy, geo: geo)
+                            hoverLocation = hoveredDay == nil ? nil : location
                         case .ended:
                             hoveredDay = nil
+                            hoverLocation = nil
                         }
                     }
+            }
+        }
+        // Render the tooltip as a top-level overlay so it draws ON TOP of the
+        // legend (a chart annotation renders under it) and is fully opaque.
+        .overlay {
+            if let hoveredDay, let items = segmentsByDay[hoveredDay], let location = hoverLocation {
+                GeometryReader { geo in
+                    let tipWidth: CGFloat = 184
+                    let minX: CGFloat = 4
+                    let maxX = max(minX, geo.size.width - tipWidth - 4)
+                    let x = min(max(location.x - tipWidth / 2, minX), maxX)
+                    tooltip(date: hoveredDay, items: items)
+                        .frame(width: tipWidth, alignment: .leading)
+                        .offset(x: x, y: 2)
+                }
             }
         }
         .accessibilityLabel("Token usage by model and day")
