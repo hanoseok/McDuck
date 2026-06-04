@@ -113,8 +113,10 @@ push 이벤트로 워크플로가 macOS 러너(`runs-on: macos-26`)에서 다음
 ```bash
 cd ~/Downloads
 unzip -o McDuck-<tag>-macos.zip
-bash "McDuck-<tag>/Install McDuck.command"   # quarantine 영향 없이 실행
+bash "McDuck-<tag>/Install McDuck.command"   # 관리자 암호로 설치 + quarantine 제거
 ```
+
+> 설치 스크립트와 `.pkg`의 `postinstall`은 모두 **관리자 권한(암호)** 으로 `xattr -dr com.apple.quarantine`을 실행해 Gatekeeper 차단을 풉니다.
 
 수동으로 하려면 ad-hoc 서명만 된 앱이라 quarantine을 직접 제거해야 합니다.
 
