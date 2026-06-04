@@ -15,9 +15,11 @@ let package = Package(
         .executableTarget(
             name: "McDuck",
             dependencies: ["McDuckCore"],
+            // The asset catalog is compiled into the app's main bundle by
+            // build-app.sh (swift build does not run actool), so exclude it here.
+            exclude: ["Resources/Assets.xcassets"],
             resources: [
-                .process("Resources/AppIcon.png"),
-                .process("Resources/Assets.xcassets")
+                .process("Resources/AppIcon.png")
             ]
         ),
         .testTarget(

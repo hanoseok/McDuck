@@ -54,6 +54,19 @@ if [[ -f "$ICON_SRC" ]] && command -v iconutil >/dev/null 2>&1 && command -v sip
   echo "Embedded app icon"
 fi
 
+# Compile the asset catalog into the app's main bundle as Assets.car so named
+# images (e.g. MenuBarIcon used by MenuBarExtra) resolve at runtime. swift build
+# does not run actool, so do it here with the Xcode tool.
+XCASSETS="$ROOT_DIR/Sources/McDuck/Resources/Assets.xcassets"
+if [[ -d "$XCASSETS" ]] && command -v xcrun >/dev/null 2>&1; then
+  xcrun actool "$XCASSETS" \
+    --compile "$RESOURCES_DIR" \
+    --platform macosx \
+    --minimum-deployment-target 15.0 \
+    --output-format human-readable-text >/dev/null
+  echo "Compiled asset catalog"
+fi
+
 # Ad-hoc sign the bundle so it has a valid signature. This turns the
 # "damaged, move to Trash" Gatekeeper block into a normal unidentified-
 # developer prompt that can be bypassed with right-click > Open.

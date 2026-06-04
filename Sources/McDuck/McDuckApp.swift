@@ -5,16 +5,14 @@ struct McDuckApp: App {
     @State private var store = UsageStore()
 
     var body: some Scene {
-        MenuBarExtra {
+        // The asset catalog is compiled into the main bundle (build-app.sh), so
+        // the image name resolves via the main bundle here.
+        MenuBarExtra("McDuck", image: "MenuBarIcon") {
             McDuckPopover(store: store)
                 .frame(width: 480)
                 .task {
                     store.startAutoRefresh()
                 }
-        } label: {
-            // A named asset-catalog image renders reliably in the menu bar,
-            // unlike Image(nsImage:) which often does not appear there.
-            Image("MenuBarIcon", bundle: .module)
         }
         .menuBarExtraStyle(.window)
     }
