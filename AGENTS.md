@@ -27,7 +27,7 @@ McDuck은 `bunx ccusage` 출력을 읽어 macOS 상태바 팝오버에서 LLM to
 - Swift Charts
 - Liquid Glass: `GlassEffectContainer`, `glassEffect`
 - Swift Testing
-- 플랫폼: macOS 26 (`Package.swift`의 `.macOS(.v26)`)
+- 플랫폼: macOS 15 (Sequoia) 이상 (`Package.swift`의 `.macOS(.v15)`). Liquid Glass는 macOS 26+에서만 적용되고, 이전 버전에선 `#available` 체크로 material로 대체됩니다.
 
 ## 로컬 빌드와 검증
 
