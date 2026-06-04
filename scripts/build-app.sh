@@ -59,11 +59,16 @@ fi
 # does not run actool, so do it here with the Xcode tool.
 XCASSETS="$ROOT_DIR/Sources/McDuck/Resources/Assets.xcassets"
 if [[ -d "$XCASSETS" ]] && command -v xcrun >/dev/null 2>&1; then
-  xcrun actool "$XCASSETS" \
-    --compile "$RESOURCES_DIR" \
-    --platform macosx \
-    --minimum-deployment-target 15.0 \
-    --output-format human-readable-text >/dev/null
+  # Compile into both the main bundle and the SwiftPM module bundle so the
+  # named image resolves whether looked up via the main bundle or Bundle.module.
+  for dest in "$RESOURCES_DIR" "$RESOURCES_DIR/McDuck_McDuck.bundle"; do
+    [[ -d "$dest" ]] || continue
+    xcrun actool "$XCASSETS" \
+      --compile "$dest" \
+      --platform macosx \
+      --minimum-deployment-target 15.0 \
+      --output-format human-readable-text >/dev/null
+  done
   echo "Compiled asset catalog"
 fi
 
