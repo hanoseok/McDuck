@@ -55,6 +55,7 @@ public struct CcusageClient: Sendable {
             let result = await runner.run(CommandRequest(
                 executable: bunPath,
                 arguments: ["x", "ccusage", "daily", "--json", "--breakdown"],
+                environment: ["PATH": BunLocator.augmentedPATH(bunPath: bunPath)],
                 timeout: 90
             ))
 
@@ -78,6 +79,7 @@ public struct CcusageClient: Sendable {
         let result = await runner.run(CommandRequest(
             executable: bunPath,
             arguments: ["x", "ccusage", "blocks", "--json"],
+            environment: ["PATH": BunLocator.augmentedPATH(bunPath: bunPath)],
             timeout: 90
         ))
 

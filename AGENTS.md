@@ -102,7 +102,15 @@ push 이벤트로 워크플로가 macOS 러너(`runs-on: macos-26`)에서 다음
 
 ### 4. 설치 / 실행
 
-릴리스에는 세 가지가 첨부됩니다: `McDuck-<tag>.pkg`(설치 패키지), `McDuck-<tag>-macos.zip`(앱 + 설치 스크립트), `McDuck-<tag>-checksums.sha256`.
+**가장 쉬운 방법 — 터미널 원라이너(경고 없음):** `curl`로 받은 파일에는 quarantine이 붙지 않아 Gatekeeper가 막지 않습니다. `xattr`·시스템 설정 없이 관리자 암호만 입력하면 됩니다.
+
+```bash
+curl -fsSL https://github.com/hanoseok/McDuck/releases/latest/download/remote-install.sh | bash
+```
+
+이 스크립트(`scripts/remote-install.sh`)는 최신 릴리스의 `.pkg`를 curl로 받아 `sudo installer`로 설치합니다(설치 후 postinstall이 quarantine 제거·실행).
+
+릴리스에는 네 가지가 첨부됩니다: `McDuck-<tag>.pkg`(설치 패키지), `McDuck-<tag>-macos.zip`(앱 + 설치 스크립트), `remote-install.sh`(원라이너), `McDuck-<tag>-checksums.sha256`.
 
 **권장: `.pkg` 더블클릭.** `McDuck-<tag>.pkg`를 더블클릭하면 macOS 설치 마법사 창이 떠서 `/Applications`에 설치하고, `postinstall`(`scripts/pkg-scripts/postinstall`)이 실행 중인 McDuck 종료 → quarantine 제거 → 실행까지 처리합니다.
 

@@ -52,6 +52,7 @@ final class UsageStore {
 
     /// Time window for the top summary + bar chart (does NOT affect the heatmap).
     enum RangeMode: String, CaseIterable, Identifiable {
+        case day
         case week
         case month
         case custom
@@ -60,6 +61,7 @@ final class UsageStore {
 
         var title: String {
             switch self {
+            case .day: "1D"
             case .week: "1W"
             case .month: "1M"
             case .custom: "Custom"
@@ -145,6 +147,8 @@ final class UsageStore {
     var rangeInterval: (start: Date, end: Date) {
         let today = gregorian.startOfDay(for: Date())
         switch rangeMode {
+        case .day:
+            return (today, today)
         case .week:
             let start = gregorian.date(byAdding: .day, value: -6, to: today) ?? today
             return (start, today)

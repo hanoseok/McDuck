@@ -162,8 +162,8 @@ struct McDuckPopover: View {
     private var summaryStrip: some View {
         HStack(spacing: 8) {
             MetricPill(title: "Tokens", value: Formatters.compact(store.rangeSummary.totalTokens))
-            MetricPill(title: "Time", value: store.rangeActiveTimeText)
             MetricPill(title: "Cost", value: Formatters.currency(store.rangeSummary.totalCostUSD))
+            MetricPill(title: "Time", value: store.rangeActiveTimeText)
         }
     }
 
@@ -397,11 +397,15 @@ private struct TokenBarChart: View {
         }
         .padding(8)
         .frame(minWidth: 150, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor))
+        )
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(.secondary.opacity(0.25))
         }
+        .shadow(color: .black.opacity(0.18), radius: 6, y: 2)
     }
 }
 
