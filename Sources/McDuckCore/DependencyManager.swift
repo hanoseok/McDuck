@@ -23,6 +23,7 @@ public struct DependencyManager: Sendable {
         let result = await runner.run(CommandRequest(
             executable: bunPath,
             arguments: ["x", "ccusage", "--version"],
+            environment: ["PATH": BunLocator.augmentedPATH(bunPath: bunPath)],
             timeout: 60
         ))
 
@@ -44,6 +45,7 @@ public struct DependencyManager: Sendable {
         return await runner.run(CommandRequest(
             executable: bunPath,
             arguments: ["x", "ccusage", "--version"],
+            environment: ["PATH": BunLocator.augmentedPATH(bunPath: bunPath)],
             timeout: 120
         ))
     }

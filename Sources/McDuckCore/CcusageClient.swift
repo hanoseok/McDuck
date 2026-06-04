@@ -55,6 +55,7 @@ public struct CcusageClient: Sendable {
             let result = await runner.run(CommandRequest(
                 executable: bunPath,
                 arguments: ["x", "ccusage", "daily", "--json", "--breakdown"],
+                environment: ["PATH": BunLocator.augmentedPATH(bunPath: bunPath)],
                 timeout: 90
             ))
 
@@ -65,5 +66,27 @@ public struct CcusageClient: Sendable {
 
             return try parser.parseDailyJSON(Data(result.stdout.utf8))
         }
+    }
+
+    /// Best-effort per-day active duration (seconds) from `ccusage blocks`.
+    /// Supplementary data: any failure returns an empty map instead of throwing
+    /// so it never disrupts the main usage report.
+    public func loadDailyActivity() async -> [String: TimeInterval] {
+        guard case .ready(let bunPath, _) = await dependencyManager.check() else {
+            return [:]
+        }
+
+        let result = await runner.run(CommandRequest(
+            executable: bunPath,
+            arguments: ["x", "ccusage", "blocks", "--json"],
+            environment: ["PATH": BunLocator.augmentedPATH(bunPath: bunPath)],
+            timeout: 90
+        ))
+
+        guard result.exitCode == 0 else {
+            return [:]
+        }
+
+        return (try? parser.parseBlocksJSON(Data(result.stdout.utf8))) ?? [:]
     }
 }

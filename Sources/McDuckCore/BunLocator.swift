@@ -16,6 +16,35 @@ public struct StaticBunLocator: BunLocating {
     }
 }
 
+public extension BunLocator {
+    /// A PATH that includes bun's directory and common install locations.
+    /// GUI apps launched from Finder/the installer inherit a minimal PATH
+    /// (`/usr/bin:/bin:...`), so bun (and the tools it shells out to) may not be
+    /// found when running `bun x ccusage`. Pass this as the subprocess PATH.
+    static func augmentedPATH(
+        bunPath: String,
+        home: URL = FileManager.default.homeDirectoryForCurrentUser,
+        basePATH: String = ProcessInfo.processInfo.environment["PATH"] ?? ""
+    ) -> String {
+        let bunDirectory = (bunPath as NSString).deletingLastPathComponent
+        let preferred = [
+            bunDirectory,
+            home.appending(path: ".bun/bin").path,
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "/usr/bin",
+            "/bin",
+            "/usr/sbin",
+            "/sbin"
+        ]
+        let existing = basePATH.split(separator: ":").map(String.init)
+
+        var seen = Set<String>()
+        let merged = (preferred + existing).filter { !$0.isEmpty && seen.insert($0).inserted }
+        return merged.joined(separator: ":")
+    }
+}
+
 public struct BunLocator: BunLocating {
     private let environment: [String: String]
     private let homeDirectory: URL

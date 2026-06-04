@@ -4,6 +4,19 @@ import SwiftUI
 struct HeatmapGrid: View {
     let cells: [HeatmapCell]
     @Binding var selectedDateString: String?
+    /// Initial scroll position: trailing keeps "today" on the right for the
+    /// rolling view; leading left-aligns a selected calendar year (Jan first).
+    var scrollAnchor: UnitPoint = .trailing
+
+    private let cellSize: CGFloat = 7
+    private let spacing: CGFloat = 1
+
+    private static let monthFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "MMM"
+        return formatter
+    }()
 
     private var weeks: [[HeatmapCell]] {
         stride(from: 0, to: cells.count, by: 7).map { index in
@@ -12,37 +25,92 @@ struct HeatmapGrid: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 4) {
+        ScrollView(.horizontal, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 4) {
+                monthLabels
+                grid
+            }
+            .padding(.trailing, 2)
+        }
+        .defaultScrollAnchor(scrollAnchor)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var monthLabels: some View {
+        HStack(alignment: .bottom, spacing: spacing) {
+            ForEach(Array(weeks.enumerated()), id: \.offset) { index, _ in
+                Text(monthLabel(forColumn: index))
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+                    .frame(width: cellSize, alignment: .leading)
+            }
+        }
+    }
+
+    private var grid: some View {
+        HStack(alignment: .top, spacing: spacing) {
             ForEach(Array(weeks.enumerated()), id: \.offset) { _, week in
-                VStack(spacing: 4) {
+                VStack(spacing: spacing) {
                     ForEach(week) { cell in
-                        cellButton(cell)
+                        cellView(cell)
                     }
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func cellButton(_ cell: HeatmapCell) -> some View {
-        let isSelected = selectedDateString == cell.dateString
-
-        return Button {
-            selectedDateString = cell.dateString
-        } label: {
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .fill(color(for: cell.intensity))
-                .frame(width: 13, height: 13)
-                .overlay {
-                    if isSelected {
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .stroke(.primary, lineWidth: 1.2)
+    @ViewBuilder
+    private func cellView(_ cell: HeatmapCell) -> some View {
+        if cell.isPlaceholder {
+            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                .fill(Color.clear)
+                .frame(width: cellSize, height: cellSize)
+        } else {
+            let isSelected = selectedDateString == cell.dateString
+            Button {
+                selectedDateString = cell.dateString
+            } label: {
+                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                    .fill(color(for: cell.intensity))
+                    .frame(width: cellSize, height: cellSize)
+                    .overlay {
+                        if isSelected {
+                            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                                .stroke(.primary, lineWidth: 1)
+                        }
                     }
-                }
+            }
+            .buttonStyle(.plain)
+            .help(helpText(for: cell))
+            .accessibilityLabel(helpText(for: cell))
         }
-        .buttonStyle(.plain)
-        .help(helpText(for: cell))
-        .accessibilityLabel(helpText(for: cell))
+    }
+
+    private func monthLabel(forColumn index: Int) -> String {
+        guard let top = weeks[index].first else {
+            return ""
+        }
+
+        let calendar = Calendar(identifier: .gregorian)
+        let month = calendar.component(.month, from: top.date)
+
+        if index == 0 {
+            // Only label the first column if it begins near the start of a month,
+            // otherwise the label would crowd the next month's label.
+            return calendar.component(.day, from: top.date) <= 7 ? Self.shortMonth(top.date) : ""
+        }
+
+        guard let previousTop = weeks[index - 1].first else {
+            return ""
+        }
+
+        let previousMonth = calendar.component(.month, from: previousTop.date)
+        return month != previousMonth ? Self.shortMonth(top.date) : ""
+    }
+
+    private static func shortMonth(_ date: Date) -> String {
+        monthFormatter.string(from: date)
     }
 
     private func color(for intensity: Int) -> Color {

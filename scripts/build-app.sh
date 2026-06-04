@@ -19,4 +19,25 @@ cp "$BIN_DIR/McDuck" "$MACOS_DIR/McDuck"
 cp "$ROOT_DIR/Resources/Info.plist" "$CONTENTS_DIR/Info.plist"
 chmod +x "$MACOS_DIR/McDuck"
 
+# Stamp the app bundle with a release version when provided.
+# MCDUCK_VERSION sets CFBundleShortVersionString (e.g. 1.2.0).
+# MCDUCK_BUILD sets CFBundleVersion (e.g. a build number); defaults to 1.
+PLIST="$CONTENTS_DIR/Info.plist"
+if [[ -n "${MCDUCK_VERSION:-}" ]]; then
+  SHORT_VERSION="${MCDUCK_VERSION#v}"
+  BUILD_VERSION="${MCDUCK_BUILD:-1}"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $SHORT_VERSION" "$PLIST"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_VERSION" "$PLIST"
+  echo "Stamped version $SHORT_VERSION (build $BUILD_VERSION)"
+fi
+
+# Ad-hoc sign the bundle so it has a valid signature. This turns the
+# "damaged, move to Trash" Gatekeeper block into a normal unidentified-
+# developer prompt that can be bypassed with right-click > Open.
+# (Full notarization still requires a paid Apple Developer ID.)
+if command -v codesign >/dev/null 2>&1; then
+  codesign --force --deep --sign - "$APP_DIR"
+  echo "Ad-hoc signed $APP_DIR"
+fi
+
 echo "Built $APP_DIR"

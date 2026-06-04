@@ -7,9 +7,9 @@ struct McDuckApp: App {
     var body: some Scene {
         MenuBarExtra("McDuck", systemImage: "chart.bar.xaxis") {
             McDuckPopover(store: store)
-                .frame(width: 390)
+                .frame(width: 480)
                 .task {
-                    await store.refreshIfNeeded()
+                    store.startAutoRefresh()
                 }
         }
         .menuBarExtraStyle(.window)

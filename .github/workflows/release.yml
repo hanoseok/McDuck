@@ -1,0 +1,138 @@
+name: Release
+
+# Build the McDuck app and publish it as a versioned GitHub Release.
+# Three ways to trigger, all create a tag + Release for the version:
+#   1. Edit RELEASE_VERSION and push to the working branch (remote-only flow).
+#   2. Push a tag like `v1.2.0`.
+#   3. Run manually (workflow_dispatch) with a version input.
+on:
+  push:
+    branches:
+      - "claude/app-artifact-versioning-github-J0OGn"
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. v0.0.1"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ inputs.version }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            # Branch push: the version is whatever RELEASE_VERSION holds.
+            TAG="$(tr -d '[:space:]' < RELEASE_VERSION)"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "short=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if release already exists
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Release $TAG not found; will build and publish."
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Select latest Xcode
+        if: steps.gate.outputs.release == 'true'
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Run tests
+        if: steps.gate.outputs.release == 'true'
+        run: swift test
+
+      - name: Build app bundle
+        if: steps.gate.outputs.release == 'true'
+        env:
+          MCDUCK_VERSION: ${{ steps.version.outputs.short }}
+          MCDUCK_BUILD: ${{ github.run_number }}
+        run: scripts/build-app.sh
+
+      - name: Package app
+        if: steps.gate.outputs.release == 'true'
+        id: package
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          SHORT="${{ steps.version.outputs.short }}"
+
+          # --- .pkg installer (double-click -> macOS Installer GUI) ---
+          PKGROOT="pkgroot"
+          rm -rf "$PKGROOT"
+          mkdir -p "$PKGROOT/Applications"
+          cp -R dist/McDuck.app "$PKGROOT/Applications/McDuck.app"
+          chmod +x scripts/pkg-scripts/postinstall
+          PKG="McDuck-$TAG.pkg"
+          pkgbuild \
+            --root "$PKGROOT" \
+            --identifier io.github.hanoseok.McDuck \
+            --version "$SHORT" \
+            --install-location / \
+            --scripts scripts/pkg-scripts \
+            "$PKG"
+          # Stable, version-independent name so the installer can fetch it via
+          # /releases/latest/download/McDuck.pkg without calling the GitHub API.
+          cp "$PKG" "McDuck.pkg"
+
+          # --- .zip (app + double-clickable installer script) ---
+          STAGE="McDuck-$TAG"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE"
+          cp -R dist/McDuck.app "$STAGE/McDuck.app"
+          cp scripts/install.command "$STAGE/Install McDuck.command"
+          chmod +x "$STAGE/Install McDuck.command"
+          ARTIFACT="McDuck-$TAG-macos.zip"
+          # ditto preserves the macOS bundle structure and metadata.
+          ditto -c -k --sequesterRsrc --keepParent "$STAGE" "$ARTIFACT"
+
+          CHECKSUMS="McDuck-$TAG-checksums.sha256"
+          shasum -a 256 "$PKG" "$ARTIFACT" > "$CHECKSUMS"
+
+          echo "pkg=$PKG" >> "$GITHUB_OUTPUT"
+          echo "artifact=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "checksums=$CHECKSUMS" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        if: steps.gate.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # --target creates the tag on this commit for branch/manual runs;
+          # for a tag push the tag already exists and --target is ignored.
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "${{ steps.package.outputs.pkg }}" \
+            "McDuck.pkg" \
+            "${{ steps.package.outputs.artifact }}" \
+            "${{ steps.package.outputs.checksums }}" \
+            "scripts/remote-install.sh" \
+            --title "McDuck ${{ steps.version.outputs.tag }}" \
+            --target "${{ github.sha }}" \
+            --generate-notes

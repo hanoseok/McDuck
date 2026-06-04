@@ -35,13 +35,18 @@ struct McDuckPopover: View {
 
             Spacer()
 
+            if store.isRefreshing {
+                ProgressView()
+                    .controlSize(.small)
+            }
+
             Button {
-                Task { await store.refresh() }
+                Task { await store.refresh(quiet: true) }
             } label: {
                 Image(systemName: "arrow.clockwise")
             }
             .buttonStyle(.borderless)
-            .disabled(store.isInstalling)
+            .disabled(store.isInstalling || store.isRefreshing)
             .help("Refresh")
         }
     }
@@ -59,8 +64,8 @@ struct McDuckPopover: View {
             ) {
                 Task { await store.performSetup() }
             }
-        case .loaded(let dashboard):
-            loadedView(dashboard)
+        case .loaded:
+            loadedView()
         case .empty:
             messageView(
                 title: "No usage yet",
@@ -83,12 +88,14 @@ struct McDuckPopover: View {
         .mcDuckGlass()
     }
 
-    private func loadedView(_ dashboard: UsageStore.DashboardData) -> some View {
+    private func loadedView() -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            summaryStrip(dashboard.report)
+            rangeControls
 
-            TokenBarChart(days: Array(dashboard.report.days.suffix(14)))
-                .frame(height: 58)
+            summaryStrip
+
+            TokenBarChart(days: store.filteredDays)
+                .frame(height: 120)
                 .padding(12)
                 .mcDuckGlass(cornerRadius: 14)
 
@@ -97,27 +104,65 @@ struct McDuckPopover: View {
                     Text("Daily usage")
                         .font(.subheadline.weight(.semibold))
                     Spacer()
-                    Text("Last 12 weeks")
+                    Text(store.heatmapRangeTitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                HeatmapGrid(cells: dashboard.cells, selectedDateString: $store.selectedDateString)
+                YearSelector(years: store.availableYears, selectedYear: $store.selectedYear)
+
+                HeatmapGrid(
+                    cells: store.heatmapCells,
+                    selectedDateString: $store.selectedDateString,
+                    scrollAnchor: store.selectedYear == nil ? .trailing : .leading
+                )
+                .id(store.selectedYear)
             }
             .padding(12)
             .mcDuckGlass(cornerRadius: 14)
 
             if let selectedDay = store.selectedDay {
-                UsageDetailView(day: selectedDay)
+                UsageDetailView(
+                    day: selectedDay,
+                    activity: store.dailyActivity[selectedDay.dateString]
+                )
             }
         }
     }
 
-    private func summaryStrip(_ report: UsageReport) -> some View {
+    private var rangeControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Picker("Range", selection: $store.rangeMode) {
+                ForEach(UsageStore.RangeMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            HStack(spacing: 8) {
+                if store.rangeMode == .custom {
+                    PopoverDatePicker(date: $store.customStart)
+                    Text("–")
+                        .foregroundStyle(.secondary)
+                    PopoverDatePicker(date: $store.customEnd)
+                }
+
+                Spacer()
+
+                Text(store.rangeLabel)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption)
+        }
+    }
+
+    private var summaryStrip: some View {
         HStack(spacing: 8) {
-            MetricPill(title: "Tokens", value: Formatters.compact(report.summary.totalTokens))
-            MetricPill(title: "Cost", value: Formatters.currency(report.summary.totalCostUSD))
-            MetricPill(title: "Days", value: "\(report.days.count)")
+            MetricPill(title: "Tokens", value: Formatters.compact(store.rangeSummary.totalTokens))
+            MetricPill(title: "Cost", value: Formatters.currency(store.rangeSummary.totalCostUSD))
+            MetricPill(title: "Time", value: store.rangeActiveTimeText)
         }
     }
 
@@ -149,7 +194,7 @@ struct McDuckPopover: View {
     }
 
     private var footer: some View {
-        HStack {
+        HStack(spacing: 8) {
             if let lastUpdated = store.lastUpdated {
                 Text("Updated \(lastUpdated.formatted(date: .omitted, time: .shortened))")
                     .font(.caption2)
@@ -157,6 +202,10 @@ struct McDuckPopover: View {
             }
 
             Spacer()
+
+            Text(Self.appVersion)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
 
             Button {
                 NSApplication.shared.terminate(nil)
@@ -166,6 +215,15 @@ struct McDuckPopover: View {
             .buttonStyle(.borderless)
             .help("Quit McDuck")
         }
+    }
+
+    /// App version from the bundle (stamped at build time), e.g. "v0.0.15".
+    private static var appVersion: String {
+        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+        guard let short, !short.isEmpty else {
+            return "dev"
+        }
+        return "v\(short)"
     }
 
     private var statusText: String {
@@ -182,6 +240,30 @@ struct McDuckPopover: View {
             "No usage found"
         case .error:
             "Needs attention"
+        }
+    }
+}
+
+/// A date control that opens a calendar in a popover, avoiding the inline
+/// stepper field whose selected digit keeps a lingering blue highlight.
+private struct PopoverDatePicker: View {
+    @Binding var date: Date
+    @State private var isPresented = false
+
+    var body: some View {
+        Button {
+            isPresented = true
+        } label: {
+            Text(date, format: .dateTime.year().month(.abbreviated).day())
+                .font(.caption)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .popover(isPresented: $isPresented) {
+            DatePicker("", selection: $date, displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .labelsHidden()
+                .padding(10)
         }
     }
 }
@@ -209,17 +291,190 @@ private struct MetricPill: View {
 private struct TokenBarChart: View {
     let days: [UsageDay]
 
-    var body: some View {
-        Chart(days) { day in
-            BarMark(
-                x: .value("Date", day.date),
-                y: .value("Tokens", day.totalTokens)
-            )
-            .foregroundStyle(.blue.gradient)
-            .cornerRadius(3)
+    @State private var hoveredDay: Date?
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// A fully opaque, fixed RGB color (not a system/dynamic color). System
+    /// colors render with vibrancy inside the menu-bar popover, which is why the
+    /// tooltip looked see-through; a literal color stays solid.
+    private var tooltipBackground: Color {
+        colorScheme == .dark ? Color(red: 0.16, green: 0.16, blue: 0.17) : .white
+    }
+
+    private struct Segment: Identifiable {
+        var id: String { "\(date.timeIntervalSince1970)-\(model)" }
+        let date: Date
+        let model: String
+        let tokens: Int
+    }
+
+    /// One stacked segment per (day, model) so each bar shows the day total and
+    /// the per-model proportion within it.
+    private var segments: [Segment] {
+        days.flatMap { day -> [Segment] in
+            if day.breakdown.isEmpty {
+                return [Segment(date: day.date, model: "Total", tokens: day.totalTokens)]
+            }
+            return day.breakdown.map { entry in
+                Segment(date: day.date, model: entry.key, tokens: entry.value.totalTokens)
+            }
         }
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
-        .accessibilityLabel("Recent token usage bar chart")
+    }
+
+    private var segmentsByDay: [Date: [Segment]] {
+        Dictionary(grouping: segments) { Calendar(identifier: .gregorian).startOfDay(for: $0.date) }
+    }
+
+    var body: some View {
+        Chart {
+            ForEach(segments) { segment in
+                BarMark(
+                    x: .value("Date", segment.date, unit: .day),
+                    y: .value("Tokens", segment.tokens)
+                )
+                .foregroundStyle(by: .value("Model", segment.model))
+            }
+
+            if let hoveredDay, let items = segmentsByDay[hoveredDay] {
+                RuleMark(x: .value("Date", hoveredDay, unit: .day))
+                    .foregroundStyle(.secondary.opacity(0.3))
+                    .annotation(
+                        position: .top,
+                        spacing: 0,
+                        overflowResolution: .init(x: .fit(to: .chart), y: .disabled)
+                    ) {
+                        tooltip(date: hoveredDay, items: items)
+                    }
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 6)) { value in
+                AxisGridLine()
+                AxisValueLabel {
+                    if let date = value.as(Date.self) {
+                        Text(date, format: .dateTime.month(.abbreviated).day())
+                    }
+                }
+            }
+        }
+        .chartYAxis {
+            AxisMarks { value in
+                AxisGridLine()
+                AxisValueLabel {
+                    if let tokens = value.as(Int.self) {
+                        Text(tokens.formatted(.number.notation(.compactName)))
+                    }
+                }
+            }
+        }
+        .chartLegend(position: .top, alignment: .leading)
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                Rectangle()
+                    .fill(.clear)
+                    .contentShape(Rectangle())
+                    .onContinuousHover { phase in
+                        switch phase {
+                        case .active(let location):
+                            hoveredDay = day(at: location, proxy: proxy, geo: geo)
+                        case .ended:
+                            hoveredDay = nil
+                        }
+                    }
+            }
+        }
+        .accessibilityLabel("Token usage by model and day")
+    }
+
+    private func day(at location: CGPoint, proxy: ChartProxy, geo: GeometryProxy) -> Date? {
+        guard let plotFrame = proxy.plotFrame else {
+            return nil
+        }
+        let xInPlot = location.x - geo[plotFrame].origin.x
+        guard let date: Date = proxy.value(atX: xInPlot) else {
+            return nil
+        }
+        let startOfDay = Calendar(identifier: .gregorian).startOfDay(for: date)
+        return segmentsByDay[startOfDay] != nil ? startOfDay : nil
+    }
+
+    private func tooltip(date: Date, items: [Segment]) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(date, format: .dateTime.year().month().day())
+                .font(.caption2.weight(.semibold))
+
+            ForEach(items.sorted { $0.tokens > $1.tokens }) { item in
+                HStack(spacing: 10) {
+                    Text(item.model)
+                        .font(.caption2)
+                        .lineLimit(1)
+                    Spacer()
+                    Text(Formatters.compact(item.tokens))
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(8)
+        .frame(minWidth: 150, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(tooltipBackground)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(.secondary.opacity(0.25))
+        }
+        // Flatten into one opaque layer so nothing shows through the tooltip.
+        .compositingGroup()
+        .shadow(color: .black.opacity(0.18), radius: 6, y: 2)
     }
 }
+
+/// GitHub-style year picker laid out horizontally above the heatmap. No
+/// explicit "Recent" entry: when no year is selected the heatmap shows the
+/// rolling last-12-months view. Tapping the selected year clears it back to
+/// that default.
+private struct YearSelector: View {
+    let years: [Int]
+    @Binding var selectedYear: Int?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(years, id: \.self) { year in
+                chip(year)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func chip(_ year: Int) -> some View {
+        let isSelected = selectedYear == year
+        return Button {
+            selectedYear = isSelected ? nil : year
+        } label: {
+            chipLabel(year, isSelected: isSelected)
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func chipLabel(_ year: Int, isSelected: Bool) -> some View {
+        let label = Text(String(year))
+            .font(.caption2.weight(isSelected ? .semibold : .regular))
+            .lineLimit(1)
+            .padding(.vertical, 3)
+            .padding(.horizontal, 10)
+            .foregroundStyle(isSelected ? Color.white : Color.primary)
+
+        if isSelected {
+            label.background {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.accentColor)
+            }
+        } else {
+            label.mcDuckGlass(cornerRadius: 6)
+        }
+    }
+}
+

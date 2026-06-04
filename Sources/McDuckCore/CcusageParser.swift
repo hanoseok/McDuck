@@ -3,6 +3,7 @@ import Foundation
 public enum CcusageParseError: Error, Equatable, LocalizedError {
     case invalidDate(String)
     case missingDailyData
+    case unreadable(String)
 
     public var errorDescription: String? {
         switch self {
@@ -10,6 +11,8 @@ public enum CcusageParseError: Error, Equatable, LocalizedError {
             "Invalid ccusage date: \(value)"
         case .missingDailyData:
             "No daily ccusage data was found."
+        case .unreadable(let detail):
+            "Could not read ccusage output. \(detail)"
         }
     }
 }
@@ -19,45 +22,96 @@ public struct CcusageParser: Sendable {
 
     public func parseDailyJSON(_ data: Data) throws -> UsageReport {
         let decoder = JSONDecoder()
-        let payload = try decoder.decode(RawPayload.self, from: data)
-        let rawDays = payload.data ?? payload.daily ?? []
+        let payload: RawPayload
+        do {
+            payload = try decoder.decode(RawPayload.self, from: data)
+        } catch {
+            // Surface what ccusage actually returned so schema drift is diagnosable
+            // instead of bubbling up an opaque "data couldn't be read" message.
+            let snippet = String(decoding: data.prefix(240), as: UTF8.self)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            throw CcusageParseError.unreadable(snippet.isEmpty ? "Output was empty." : "Output started with: \(snippet)")
+        }
 
+        let rawDays = payload.data ?? payload.daily ?? []
         guard !rawDays.isEmpty else {
             throw CcusageParseError.missingDailyData
         }
 
-        let days = try rawDays.map { raw -> UsageDay in
-            guard DateOnly.parse(raw.date) != nil else {
-                throw CcusageParseError.invalidDate(raw.date)
+        // Skip entries without a usable date (e.g. aggregate rows) rather than
+        // failing the whole report.
+        let days = rawDays.compactMap { raw -> UsageDay? in
+            // Newer ccusage names the day field `period`; older output uses `date`.
+            guard let dateString = raw.date ?? raw.period, DateOnly.parse(dateString) != nil else {
+                return nil
             }
 
-            let breakdown = raw.breakdown?.mapValues { usage in
-                ModelUsage(
-                    inputTokens: usage.inputTokens ?? 0,
-                    outputTokens: usage.outputTokens ?? 0,
-                    cacheCreationTokens: usage.cacheCreationTokens ?? 0,
-                    cacheReadTokens: usage.cacheReadTokens ?? 0,
-                    totalTokens: usage.totalTokens ?? 0,
-                    costUSD: usage.costUSD ?? usage.totalCost ?? 0
-                )
-            } ?? [:]
+            let breakdown = Self.breakdown(from: raw)
 
             return UsageDay(
-                dateString: raw.date,
+                dateString: dateString,
                 inputTokens: raw.inputTokens ?? 0,
                 outputTokens: raw.outputTokens ?? 0,
                 cacheCreationTokens: raw.cacheCreationTokens ?? 0,
                 cacheReadTokens: raw.cacheReadTokens ?? 0,
                 totalTokens: raw.totalTokens ?? 0,
                 costUSD: raw.costUSD ?? raw.totalCost ?? 0,
-                models: raw.models ?? raw.modelsUsed ?? Array(breakdown.keys).sorted(),
+                models: raw.models ?? raw.modelsUsed ?? breakdown.keys.sorted(),
                 breakdown: breakdown
             )
         }
         .sorted { $0.date < $1.date }
 
+        guard !days.isEmpty else {
+            throw CcusageParseError.missingDailyData
+        }
+
         let summary = Self.summary(from: payload.summary ?? payload.totals, fallbackDays: days)
         return UsageReport(days: days, summary: summary)
+    }
+
+    private static func breakdown(from raw: RawDay) -> [String: ModelUsage] {
+        // ccusage emits per-model data either as a `breakdown` dictionary or,
+        // with `--breakdown`, as a `modelBreakdowns` array keyed by `modelName`.
+        if let dict = raw.breakdown {
+            return dict.mapValues { usage in
+                let input = usage.inputTokens ?? 0
+                let output = usage.outputTokens ?? 0
+                let cacheCreation = usage.cacheCreationTokens ?? 0
+                let cacheRead = usage.cacheReadTokens ?? 0
+                return ModelUsage(
+                    inputTokens: input,
+                    outputTokens: output,
+                    cacheCreationTokens: cacheCreation,
+                    cacheReadTokens: cacheRead,
+                    // ccusage's per-model entries often omit a total; derive it.
+                    totalTokens: usage.totalTokens ?? (input + output + cacheCreation + cacheRead),
+                    costUSD: usage.costUSD ?? usage.cost ?? usage.totalCost ?? 0
+                )
+            }
+        }
+
+        if let list = raw.modelBreakdowns {
+            var result: [String: ModelUsage] = [:]
+            for item in list {
+                guard let name = item.modelName else { continue }
+                let input = item.inputTokens ?? 0
+                let output = item.outputTokens ?? 0
+                let cacheCreation = item.cacheCreationTokens ?? 0
+                let cacheRead = item.cacheReadTokens ?? 0
+                result[name] = ModelUsage(
+                    inputTokens: input,
+                    outputTokens: output,
+                    cacheCreationTokens: cacheCreation,
+                    cacheReadTokens: cacheRead,
+                    totalTokens: item.totalTokens ?? (input + output + cacheCreation + cacheRead),
+                    costUSD: item.costUSD ?? item.cost ?? item.totalCost ?? 0
+                )
+            }
+            return result
+        }
+
+        return [:]
     }
 
     private static func summary(from raw: RawSummary?, fallbackDays days: [UsageDay]) -> UsageSummary {
@@ -72,6 +126,62 @@ public struct CcusageParser: Sendable {
     }
 }
 
+extension CcusageParser {
+    /// Parses `ccusage blocks --json` into per-day active duration (seconds),
+    /// keyed by the local day of each block's start. Gaps are ignored; a block's
+    /// active span is `actualEndTime - startTime` (falling back to `endTime`).
+    public func parseBlocksJSON(_ data: Data) throws -> [String: TimeInterval] {
+        let payload = try JSONDecoder().decode(RawBlocksPayload.self, from: data)
+
+        // ISO8601DateFormatter isn't Sendable, so keep it local (not a shared
+        // static) to stay concurrency-safe under Swift 6.
+        let isoWithFraction = ISO8601DateFormatter()
+        isoWithFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let isoPlain = ISO8601DateFormatter()
+        isoPlain.formatOptions = [.withInternetDateTime]
+        func parseISO(_ string: String) -> Date? {
+            isoWithFraction.date(from: string) ?? isoPlain.date(from: string)
+        }
+
+        var result: [String: TimeInterval] = [:]
+
+        for block in payload.blocks ?? [] {
+            if block.isGap == true {
+                continue
+            }
+            guard let startString = block.startTime,
+                  let start = parseISO(startString) else {
+                continue
+            }
+
+            let end = block.actualEndTime.flatMap(parseISO)
+                ?? block.endTime.flatMap(parseISO)
+                ?? start
+            let duration = max(end.timeIntervalSince(start), 0)
+            guard duration > 0 else {
+                continue
+            }
+
+            let dateString = DateOnly.string(from: start)
+            result[dateString, default: 0] += duration
+        }
+
+        return result
+    }
+}
+
+private struct RawBlocksPayload: Decodable {
+    var blocks: [RawBlock]?
+}
+
+private struct RawBlock: Decodable {
+    var startTime: String?
+    var endTime: String?
+    var actualEndTime: String?
+    var isActive: Bool?
+    var isGap: Bool?
+}
+
 private struct RawPayload: Decodable {
     var type: String?
     var data: [RawDay]?
@@ -81,7 +191,8 @@ private struct RawPayload: Decodable {
 }
 
 private struct RawDay: Decodable {
-    var date: String
+    var date: String?
+    var period: String?
     var models: [String]?
     var modelsUsed: [String]?
     var inputTokens: Int?
@@ -92,6 +203,7 @@ private struct RawDay: Decodable {
     var costUSD: Double?
     var totalCost: Double?
     var breakdown: [String: RawUsage]?
+    var modelBreakdowns: [RawModelBreakdown]?
 }
 
 private struct RawUsage: Decodable {
@@ -101,6 +213,19 @@ private struct RawUsage: Decodable {
     var cacheReadTokens: Int?
     var totalTokens: Int?
     var costUSD: Double?
+    var cost: Double?
+    var totalCost: Double?
+}
+
+private struct RawModelBreakdown: Decodable {
+    var modelName: String?
+    var inputTokens: Int?
+    var outputTokens: Int?
+    var cacheCreationTokens: Int?
+    var cacheReadTokens: Int?
+    var totalTokens: Int?
+    var costUSD: Double?
+    var cost: Double?
     var totalCost: Double?
 }
 

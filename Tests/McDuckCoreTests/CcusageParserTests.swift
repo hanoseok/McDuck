@@ -89,4 +89,151 @@ struct CcusageParserTests {
         #expect(report.summary.inputTokens == 200)
         #expect(report.summary.totalCostUSD == 1.25)
     }
+
+    @Test("parses modelBreakdowns array from --breakdown output")
+    func parsesModelBreakdownsArray() throws {
+        let json = """
+        {
+          "daily": [
+            {
+              "date": "2026-05-22",
+              "modelsUsed": ["claude-opus-4-1-20250805"],
+              "inputTokens": 100,
+              "outputTokens": 200,
+              "totalTokens": 300,
+              "totalCost": 3.50,
+              "modelBreakdowns": [
+                {
+                  "modelName": "claude-opus-4-1-20250805",
+                  "inputTokens": 100,
+                  "outputTokens": 200,
+                  "cacheCreationTokens": 10,
+                  "cacheReadTokens": 20,
+                  "totalTokens": 300,
+                  "cost": 3.50
+                }
+              ]
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let report = try CcusageParser().parseDailyJSON(json)
+
+        #expect(report.days.count == 1)
+        let breakdown = report.days[0].breakdown["claude-opus-4-1-20250805"]
+        #expect(breakdown?.outputTokens == 200)
+        #expect(breakdown?.costUSD == 3.50)
+        #expect(report.days[0].models == ["claude-opus-4-1-20250805"])
+    }
+
+    @Test("parses multi-agent output that uses 'period' as the day field")
+    func parsesPeriodDayField() throws {
+        let json = """
+        {
+          "daily": [
+            {
+              "agent": "all",
+              "period": "2025-09-14",
+              "cacheCreationTokens": 0,
+              "cacheReadTokens": 5455946,
+              "inputTokens": 2517726,
+              "outputTokens": 54169,
+              "totalTokens": 8082906,
+              "totalCost": 8.5931729,
+              "modelsUsed": ["gemini-2.5-flash", "gemini-2.5-pro"],
+              "modelBreakdowns": [
+                {
+                  "modelName": "gemini-2.5-pro",
+                  "inputTokens": 2455463,
+                  "outputTokens": 53740,
+                  "cacheCreationTokens": 0,
+                  "cacheReadTokens": 5455946,
+                  "cost": 8.567664
+                }
+              ]
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let report = try CcusageParser().parseDailyJSON(json)
+
+        #expect(report.days.map(\.dateString) == ["2025-09-14"])
+        #expect(report.days[0].totalTokens == 8_082_906)
+        #expect(report.days[0].costUSD == 8.5931729)
+        #expect(report.days[0].models == ["gemini-2.5-flash", "gemini-2.5-pro"])
+        #expect(report.days[0].breakdown["gemini-2.5-pro"]?.outputTokens == 53_740)
+        #expect(report.days[0].breakdown["gemini-2.5-pro"]?.costUSD == 8.567664)
+    }
+
+    @Test("skips entries without a usable date instead of failing")
+    func skipsDatelessEntries() throws {
+        let json = """
+        {
+          "daily": [
+            { "inputTokens": 5, "outputTokens": 5, "totalTokens": 10, "totalCost": 0.01 },
+            {
+              "date": "2026-05-23",
+              "inputTokens": 50,
+              "outputTokens": 60,
+              "totalTokens": 110,
+              "totalCost": 0.5
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let report = try CcusageParser().parseDailyJSON(json)
+
+        #expect(report.days.map(\.dateString) == ["2026-05-23"])
+        #expect(report.days[0].totalTokens == 110)
+    }
+
+    @Test("throws a readable error for malformed output")
+    func throwsReadableErrorForMalformedOutput() throws {
+        let json = Data("not json at all".utf8)
+
+        #expect(throws: CcusageParseError.self) {
+            try CcusageParser().parseDailyJSON(json)
+        }
+    }
+
+    @Test("blocks JSON aggregates active duration per day, skipping gaps")
+    func parsesBlocksIntoDailyActivity() throws {
+        let json = """
+        {
+          "blocks": [
+            {
+              "id": "a",
+              "startTime": "2026-05-16T09:00:00.000Z",
+              "endTime": "2026-05-16T14:00:00.000Z",
+              "actualEndTime": "2026-05-16T11:00:00.000Z",
+              "isActive": false
+            },
+            {
+              "id": "b",
+              "startTime": "2026-05-16T15:00:00.000Z",
+              "endTime": "2026-05-16T20:00:00.000Z",
+              "actualEndTime": "2026-05-16T15:30:00.000Z",
+              "isActive": false
+            },
+            {
+              "id": "gap",
+              "startTime": "2026-05-17T00:00:00.000Z",
+              "endTime": "2026-05-17T05:00:00.000Z",
+              "isGap": true
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        let activity = try CcusageParser().parseBlocksJSON(json)
+
+        // Two non-gap blocks on 2026-05-16 (UTC): 2h + 0.5h = 2.5h. The gap is skipped.
+        let day = activity["2026-05-16"]
+        #expect(day != nil)
+        #expect(abs((day ?? 0) - 9000) < 1) // 2.5 hours in seconds
+        #expect(activity["2026-05-17"] == nil)
+    }
 }
