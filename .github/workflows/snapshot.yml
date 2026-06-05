@@ -37,18 +37,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Bump the patch of the highest existing X.Y.Z-SNAPSHOT; start fresh
-          # at 1.0.0-SNAPSHOT when there are none. The moving `snapshot-latest`
-          # tag is excluded by the version regex.
-          existing="$(gh release list --limit 200 --json tagName --jq '.[].tagName' \
-            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+-SNAPSHOT$' || true)"
-          if [ -z "$existing" ]; then
-            VERSION="1.0.0-SNAPSHOT"
+          # Snapshots live on the current development line MAJOR.MINOR, held in
+          # RELEASE_VERSION (e.g. "1.0"). The patch auto-increments within the
+          # line: 1.0.0-SNAPSHOT, 1.0.1-SNAPSHOT, ... When RELEASE_VERSION's
+          # MINOR is bumped (e.g. to "1.1"), the line restarts at 1.1.0-SNAPSHOT.
+          LINE="$(tr -d '[:space:]' < RELEASE_VERSION)"; LINE="${LINE#v}"
+          IFS=. read -r MAJ MIN REST <<< "$LINE"
+          maxpat="$(gh release list --limit 200 --json tagName --jq '.[].tagName' \
+            | grep -E "^${MAJ}\.${MIN}\.[0-9]+-SNAPSHOT$" \
+            | sed -E "s/^${MAJ}\.${MIN}\.//; s/-SNAPSHOT$//" \
+            | sort -n | tail -1)"
+          if [ -z "$maxpat" ]; then
+            VERSION="${MAJ}.${MIN}.0-SNAPSHOT"
           else
-            highest="$(printf '%s\n' "$existing" | sed 's/-SNAPSHOT$//' \
-              | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)"
-            IFS=. read -r MA MI PA <<< "$highest"
-            VERSION="${MA}.${MI}.$((PA + 1))-SNAPSHOT"
+            VERSION="${MAJ}.${MIN}.$((maxpat + 1))-SNAPSHOT"
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Next snapshot version: $VERSION"
