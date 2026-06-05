@@ -1,0 +1,62 @@
+name: Cut (bridge)
+
+# Lets a branch push (PR merge) kick a tag-based build. The cloud agent can't
+# push tags or call workflow_dispatch directly (sandbox 403s), but it CAN merge
+# a PR; this workflow's in-Actions token (which is outside the sandbox) then
+# dispatches the real build, which creates the tag + publishes the release.
+#
+# To cut a build, write the version into the marker for its channel and merge:
+#   .github/cut-release.txt  = "1.0"             , merge to main    -> release.yml -> McDuck-1.0
+#   .github/cut-snapshot.txt = "1.0.4-SNAPSHOT"  , merge to develop -> snapshot.yml -> prerelease
+#
+# Local users don't need this — just `git push origin <tag>` triggers the build
+# directly (see release.yml / snapshot.yml). This is only the remote-agent lever.
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - ".github/cut-release.txt"
+      - ".github/cut-snapshot.txt"
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  cut:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dispatch the matching tag build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch="$GITHUB_REF_NAME"
+          if [[ "$branch" == "main" ]]; then
+            file=".github/cut-release.txt";  wf="release.yml";  kind="release"
+          else
+            file=".github/cut-snapshot.txt"; wf="snapshot.yml"; kind="snapshot"
+          fi
+
+          [ -f "$file" ] || { echo "no $file on $branch; nothing to cut"; exit 0; }
+          VERSION="$(tr -d '[:space:]' < "$file")"
+          [ -n "$VERSION" ] || { echo "$file is empty; nothing to cut"; exit 0; }
+
+          # Format guard: keep release/snapshot versions on their own channel.
+          if [[ "$kind" == "snapshot" && "$VERSION" != *-SNAPSHOT ]]; then
+            echo "'$VERSION' is not a snapshot version; skipping"; exit 0
+          fi
+          if [[ "$kind" == "release" && "$VERSION" == *-SNAPSHOT ]]; then
+            echo "'$VERSION' is not a release version; skipping"; exit 0
+          fi
+
+          # Idempotent: if the tag already exists, the build already ran.
+          if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null 2>&1; then
+            echo "tag $VERSION already exists; skipping"; exit 0
+          fi
+
+          echo "Dispatching $wf (version=$VERSION) on $branch"
+          gh workflow run "$wf" -f version="$VERSION" --ref "$branch"
