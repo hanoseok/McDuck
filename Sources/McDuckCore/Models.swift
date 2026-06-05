@@ -98,7 +98,7 @@ public struct UsageReport: Equatable, Sendable {
     }
 }
 
-enum DateOnly {
+public enum DateOnly {
     private static let formatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
@@ -108,11 +108,11 @@ enum DateOnly {
         return formatter
     }()
 
-    static func parse(_ value: String) -> Date? {
+    public static func parse(_ value: String) -> Date? {
         formatter.date(from: value)
     }
 
-    static func string(from date: Date) -> String {
+    public static func string(from date: Date) -> String {
         formatter.string(from: date)
     }
 }

@@ -118,7 +118,10 @@ struct McDuckPopover: View {
 
                 HeatmapGrid(
                     cells: store.heatmapCells,
-                    selectedDateString: $store.selectedDateString,
+                    selectedDateString: Binding(
+                        get: { store.effectiveSelectedDateString },
+                        set: { store.selectedDateString = $0 }
+                    ),
                     scrollAnchor: store.selectedYear == nil ? .trailing : .leading
                 )
                 .id(store.selectedYear)
