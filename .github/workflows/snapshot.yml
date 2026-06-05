@@ -1,0 +1,144 @@
+name: Snapshot
+
+# Build McDuck from `develop` as an auto-incrementing snapshot (test) build and
+# publish it as a GitHub *prerelease*, so it never affects the official
+# `releases/latest` that `main` produces.
+#
+# Each push to develop bumps the patch of the highest existing X.Y.Z-SNAPSHOT
+# (starting at 1.0.0-SNAPSHOT) and publishes two prereleases:
+#   - a pinned, immutable one tagged like `1.0.3-SNAPSHOT`
+#   - a moving `snapshot-latest`, re-pointed to the newest build every time
+# so installs work via (GitHub has no `/snapshot/...` path; these are the
+# closest native `/releases/...` equivalents):
+#   curl -fsSL https://github.com/hanoseok/McDuck/releases/download/snapshot-latest/install-snapshot.sh | bash
+#   curl -fsSL https://github.com/hanoseok/McDuck/releases/download/1.0.0-SNAPSHOT/install-snapshot.sh | bash
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: snapshot-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve next snapshot version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Bump the patch of the highest existing X.Y.Z-SNAPSHOT; start fresh
+          # at 1.0.0-SNAPSHOT when there are none. The moving `snapshot-latest`
+          # tag is excluded by the version regex.
+          existing="$(gh release list --limit 200 --json tagName --jq '.[].tagName' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+-SNAPSHOT$' || true)"
+          if [ -z "$existing" ]; then
+            VERSION="1.0.0-SNAPSHOT"
+          else
+            highest="$(printf '%s\n' "$existing" | sed 's/-SNAPSHOT$//' \
+              | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)"
+            IFS=. read -r MA MI PA <<< "$highest"
+            VERSION="${MA}.${MI}.$((PA + 1))-SNAPSHOT"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Next snapshot version: $VERSION"
+
+      - name: Select latest Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Run tests
+        run: swift test
+
+      - name: Build app bundle
+        env:
+          MCDUCK_VERSION: ${{ steps.version.outputs.version }}
+          MCDUCK_BUILD: ${{ github.run_number }}
+        run: scripts/build-app.sh
+
+      - name: Package app
+        id: package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # --- .pkg installer (double-click -> macOS Installer GUI) ---
+          PKGROOT="pkgroot"
+          rm -rf "$PKGROOT"
+          mkdir -p "$PKGROOT/Applications"
+          cp -R dist/McDuck.app "$PKGROOT/Applications/McDuck.app"
+          chmod +x scripts/pkg-scripts/postinstall
+          PKG="McDuck-$VERSION.pkg"
+          pkgbuild \
+            --root "$PKGROOT" \
+            --identifier io.github.hanoseok.McDuck \
+            --version "$VERSION" \
+            --install-location / \
+            --scripts scripts/pkg-scripts \
+            "$PKG"
+          # Stable, version-independent name so the moving snapshot-latest URL
+          # (.../releases/download/snapshot-latest/McDuck.pkg) always resolves.
+          cp "$PKG" "McDuck.pkg"
+
+          # --- .zip (app + double-clickable installer script) ---
+          STAGE="McDuck-$VERSION"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE"
+          cp -R dist/McDuck.app "$STAGE/McDuck.app"
+          cp scripts/install.command "$STAGE/Install McDuck.command"
+          chmod +x "$STAGE/Install McDuck.command"
+          ARTIFACT="McDuck-$VERSION-macos.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$STAGE" "$ARTIFACT"
+
+          CHECKSUMS="McDuck-$VERSION-checksums.sha256"
+          shasum -a 256 "$PKG" "$ARTIFACT" > "$CHECKSUMS"
+
+          echo "pkg=$PKG" >> "$GITHUB_OUTPUT"
+          echo "artifact=$ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "checksums=$CHECKSUMS" >> "$GITHUB_OUTPUT"
+
+      - name: Publish snapshot prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ASSETS=(
+            "${{ steps.package.outputs.pkg }}"
+            "McDuck.pkg"
+            "${{ steps.package.outputs.artifact }}"
+            "${{ steps.package.outputs.checksums }}"
+            "scripts/install-snapshot.sh"
+          )
+
+          # Pinned, immutable snapshot release.
+          gh release create "$VERSION" "${ASSETS[@]}" \
+            --title "McDuck $VERSION" \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --notes "Automated snapshot (test) build from develop."
+
+          # Moving snapshot-latest: drop the old release+tag and re-create it on
+          # this commit so the `snapshot-latest` URLs serve the newest build.
+          gh release delete snapshot-latest --yes --cleanup-tag || true
+          # Give GitHub a moment to release the deleted tag ref before re-creating.
+          for attempt in 1 2 3 4 5; do
+            if gh release create snapshot-latest "${ASSETS[@]}" \
+                 --title "McDuck snapshot (latest)" \
+                 --target "$GITHUB_SHA" \
+                 --prerelease \
+                 --notes "Latest snapshot build: $VERSION"; then
+              break
+            fi
+            echo "snapshot-latest create failed (attempt $attempt); retrying..."
+            sleep 5
+          done

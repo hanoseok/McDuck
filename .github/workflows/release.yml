@@ -1,14 +1,15 @@
 name: Release
 
-# Build the McDuck app and publish it as a versioned GitHub Release.
-# Three ways to trigger, all create a tag + Release for the version:
-#   1. Edit RELEASE_VERSION and push to the working branch (remote-only flow).
+# Build the McDuck app and publish it as the official, versioned GitHub Release.
+# Official releases come from `main` only (develop produces snapshots via
+# snapshot.yml). Three ways to trigger, all create a tag + Release:
+#   1. Edit RELEASE_VERSION and push to `main` (remote-friendly flow).
 #   2. Push a tag like `v1.2.0`.
 #   3. Run manually (workflow_dispatch) with a version input.
 on:
   push:
     branches:
-      - "claude/app-artifact-versioning-github-J0OGn"
+      - main
     tags:
       - "v*"
   workflow_dispatch:
