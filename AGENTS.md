@@ -106,18 +106,24 @@ git push origin 1.0.4-SNAPSHOT   # → snapshot.yml → prerelease + snapshot-la
 - 같은 태그가 이미 있으면 `cut.yml`은 스킵합니다(멱등).
 - **로컬 사용자에겐 불필요** — 권한 있는 곳에선 `git push origin <태그>`가 곧바로 빌드를 트리거합니다(`cut.yml`은 에이전트 전용 레버).
 
+**스냅샷 버전 규칙:** 스냅샷은 **다음 미출시 버전**을 가리킵니다. 즉 최신 정식 릴리스가 `X.Y`이면 스냅샷 라인은 `X.(Y+1)` 입니다 — `X.(Y+1).0-SNAPSHOT`부터 시작하고, 같은 라인에서 추가 빌드는 patch +1 합니다. 정식 `X.(Y+1)`이 릴리스되면 `X.(Y+2).0-SNAPSHOT`로 넘어갑니다. (예: `1.0` 릴리스됨 → `1.1.0-SNAPSHOT`, `1.1.1-SNAPSHOT`, …)
+
 **에이전트가 스냅샷 빌드 내는 절차** (예: 다음 스냅샷)
 ```bash
-# 1) 다음 버전 = 최신 X.Y.Z-SNAPSHOT 의 patch +1
-git fetch origin --tags && git tag -l '*-SNAPSHOT' | sort -V | tail -1   # 예: 1.0.4-SNAPSHOT → 다음 1.0.5-SNAPSHOT
+# 1) 다음 버전 정하기
+git fetch origin --tags
+git tag -l        | grep -E '^[0-9]+\.[0-9]+$'        | sort -V | tail -1   # 최신 정식 릴리스, 예: 1.0
+git tag -l '*-SNAPSHOT' | sort -V | tail -1                                 # 최신 스냅샷
+#   - 최신 릴리스 X.Y 보다 높은 라인의 스냅샷이 없으면 → X.(Y+1).0-SNAPSHOT (예: 1.1.0-SNAPSHOT)
+#   - 같은 라인에 스냅샷이 이미 있으면 → 그 patch +1
 
 # 2) 작업 브랜치를 develop에 맞추고 마커만 변경
 git checkout -B <작업브랜치> origin/develop
-printf '1.0.5-SNAPSHOT\n' > .github/cut-snapshot.txt
-git commit -am "ci: cut 1.0.5-SNAPSHOT" && git push -u origin <작업브랜치> --force-with-lease
+printf '1.1.0-SNAPSHOT\n' > .github/cut-snapshot.txt
+git commit -am "ci: cut 1.1.0-SNAPSHOT" && git push -u origin <작업브랜치> --force-with-lease
 
 # 3) PR(작업브랜치 → develop) 머지
-#    → cut.yml 이 snapshot.yml 을 dispatch → 빌드가 태그 1.0.5-SNAPSHOT 생성 + prerelease/snapshot-latest 게시
+#    → cut.yml 이 snapshot.yml 을 dispatch → 빌드가 태그 1.1.0-SNAPSHOT 생성 + prerelease/snapshot-latest 게시
 ```
 
 **에이전트가 정식 릴리스 내는 절차**는 동일하되 `.github/cut-release.txt`에 `MAJOR.MINOR`(예: `1.1`)를 적고 **`main`** 으로 머지합니다(→ `McDuck-1.1` + 태그 `1.1`).
