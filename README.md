@@ -61,7 +61,12 @@ Or download `McDuck-<tag>.pkg` from the [Releases](https://github.com/hanoseok/M
 
 ## Releases And Build Pipeline
 
-Releases are built on a macOS GitHub Actions runner. `develop` publishes auto-incrementing snapshot prereleases (`1.0.0-SNAPSHOT`, `1.0.1-SNAPSHOT`, …) for the current `MAJOR.MINOR` line held in `RELEASE_VERSION`; merging `develop` → `main` publishes the official moving release `McDuck-<MAJOR.MINOR>` (e.g. `McDuck-1.0`) with a `.pkg`, a `.zip`, an installer script, and checksums. Bump `RELEASE_VERSION`'s MINOR (e.g. `1.0` → `1.1`) to start the next cycle.
+Releases are **tag-based** and built on a macOS GitHub Actions runner. Push a `MAJOR.MINOR` tag (e.g. `1.0`) on a `main` commit and `release.yml` publishes the official release `McDuck-1.0` (the one `releases/latest` points to) with a `.pkg`, a `.zip`, an installer script, and checksums. Push an `X.Y.Z-SNAPSHOT` tag (e.g. `1.0.4-SNAPSHOT`) on a `develop` commit and `snapshot.yml` publishes a prerelease plus a moving `snapshot-latest`. The tag name is the version.
+
+```bash
+git tag 1.0 && git push origin 1.0                       # official  -> McDuck-1.0
+git tag 1.0.4-SNAPSHOT && git push origin 1.0.4-SNAPSHOT  # snapshot   -> prerelease + snapshot-latest
+```
 
 See **[docs/BUILD.md](docs/BUILD.md)** for the full build, versioning, release, install, and signing/notarization guide.
 

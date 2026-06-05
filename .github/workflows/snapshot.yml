@@ -1,28 +1,33 @@
 name: Snapshot
 
-# Build McDuck from `develop` as an auto-incrementing snapshot (test) build and
-# publish it as a GitHub *prerelease*, so it never affects the official
-# `releases/latest` that `main` produces.
-#
-# Each push to develop bumps the patch of the highest existing X.Y.Z-SNAPSHOT
-# (starting at 1.0.0-SNAPSHOT) and publishes two prereleases:
-#   - a pinned, immutable one tagged like `1.0.3-SNAPSHOT`
-#   - a moving `snapshot-latest`, re-pointed to the newest build every time
-# so installs work via (GitHub has no `/snapshot/...` path; these are the
-# closest native `/releases/...` equivalents):
+# Build McDuck and publish a snapshot (test) prerelease when a snapshot tag is
+# pushed (tag-based snapshots). Snapshot tags are X.Y.Z-SNAPSHOT (e.g.
+# `1.0.4-SNAPSHOT`), cut on a `develop` commit. Each build publishes:
+#   - a pinned prerelease tagged like `1.0.4-SNAPSHOT`
+#   - a moving `snapshot-latest` (re-pointed every build)
+# so installs work via (GitHub has no `/snapshot/...` path):
+#   git tag 1.0.4-SNAPSHOT && git push origin 1.0.4-SNAPSHOT
 #   curl -fsSL https://github.com/hanoseok/McDuck/releases/download/snapshot-latest/install-snapshot.sh | bash
-#   curl -fsSL https://github.com/hanoseok/McDuck/releases/download/1.0.0-SNAPSHOT/install-snapshot.sh | bash
+#   curl -fsSL https://github.com/hanoseok/McDuck/releases/download/1.0.4-SNAPSHOT/install-snapshot.sh | bash
+#
+# Being prereleases, snapshots never affect the official `releases/latest`
+# produced from release tags (see release.yml).
 on:
   push:
-    branches:
-      - develop
+    tags:
+      - "*-SNAPSHOT"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Snapshot tag to build, e.g. 1.0.4-SNAPSHOT"
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 concurrency:
-  group: snapshot-${{ github.ref }}
+  group: snapshot
   cancel-in-progress: false
 
 jobs:
@@ -32,28 +37,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Resolve next snapshot version
+      - name: Resolve snapshot version
         id: version
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          # Snapshots live on the current development line MAJOR.MINOR, held in
-          # RELEASE_VERSION (e.g. "1.0"). The patch auto-increments within the
-          # line: 1.0.0-SNAPSHOT, 1.0.1-SNAPSHOT, ... When RELEASE_VERSION's
-          # MINOR is bumped (e.g. to "1.1"), the line restarts at 1.1.0-SNAPSHOT.
-          LINE="$(tr -d '[:space:]' < RELEASE_VERSION)"; LINE="${LINE#v}"
-          IFS=. read -r MAJ MIN REST <<< "$LINE"
-          maxpat="$(gh release list --limit 200 --json tagName --jq '.[].tagName' \
-            | grep -E "^${MAJ}\.${MIN}\.[0-9]+-SNAPSHOT$" \
-            | sed -E "s/^${MAJ}\.${MIN}\.//; s/-SNAPSHOT$//" \
-            | sort -n | tail -1)"
-          if [ -z "$maxpat" ]; then
-            VERSION="${MAJ}.${MIN}.0-SNAPSHOT"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.version }}"
           else
-            VERSION="${MAJ}.${MIN}.$((maxpat + 1))-SNAPSHOT"
+            VERSION="${GITHUB_REF_NAME}"
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Next snapshot version: $VERSION"
+          echo "Snapshot version: $VERSION"
 
       - name: Select latest Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -88,8 +81,7 @@ jobs:
             --install-location / \
             --scripts scripts/pkg-scripts \
             "$PKG"
-          # Stable, version-independent name so the moving snapshot-latest URL
-          # (.../releases/download/snapshot-latest/McDuck.pkg) always resolves.
+          # Stable name for the moving snapshot-latest URL.
           cp "$PKG" "McDuck.pkg"
 
           # --- .zip (app + double-clickable installer script) ---
@@ -122,17 +114,18 @@ jobs:
             "scripts/install-snapshot.sh"
           )
 
-          # Pinned, immutable snapshot release.
-          gh release create "$VERSION" "${ASSETS[@]}" \
-            --title "McDuck $VERSION" \
-            --target "$GITHUB_SHA" \
-            --prerelease \
-            --notes "Automated snapshot (test) build from develop."
+          # Pinned, immutable snapshot release (tag already exists for a tag push;
+          # --target creates it for a workflow_dispatch run).
+          if ! gh release view "$VERSION" >/dev/null 2>&1; then
+            gh release create "$VERSION" "${ASSETS[@]}" \
+              --title "McDuck $VERSION" \
+              --target "$GITHUB_SHA" \
+              --prerelease \
+              --notes "Automated snapshot (test) build."
+          fi
 
-          # Moving snapshot-latest: drop the old release+tag and re-create it on
-          # this commit so the `snapshot-latest` URLs serve the newest build.
+          # Moving snapshot-latest: re-point to this build.
           gh release delete snapshot-latest --yes --cleanup-tag || true
-          # Give GitHub a moment to release the deleted tag ref before re-creating.
           for attempt in 1 2 3 4 5; do
             if gh release create snapshot-latest "${ASSETS[@]}" \
                  --title "McDuck snapshot (latest)" \

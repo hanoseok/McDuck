@@ -17,8 +17,7 @@ McDuck은 `bunx ccusage` 출력을 읽어 macOS 상태바 팝오버에서 LLM to
 - 테스트 가능한 코어 로직: `Sources/McDuckCore`
 - 코어 테스트: `Tests/McDuckCoreTests`
 - 앱 번들 스크립트: `scripts/build-app.sh`
-- 릴리스 워크플로: `.github/workflows/release.yml`
-- 릴리스 버전 파일: `RELEASE_VERSION`
+- 릴리스 워크플로: `.github/workflows/release.yml`(정식, `MAJOR.MINOR` 태그), `.github/workflows/snapshot.yml`(스냅샷, `X.Y.Z-SNAPSHOT` 태그)
 
 ## 기술 스택
 
@@ -52,82 +51,65 @@ scripts/build-app.sh
 
 > **왜 remote인가:** McDuck은 macOS 26 네이티브 앱이라 Linux 컨테이너(클라우드 세션)에서는 직접 빌드할 수 없습니다. 그래서 GitHub Actions의 **macOS 러너**에서 빌드하고, 결과물 `.app`을 **GitHub Release**에 올려 내려받아 실행합니다.
 
-### 0. 브랜치 전략과 릴리스 채널 (중요)
+### 0. 브랜치 전략과 빌드 트리거 (중요)
 
-- **`main` = 정식 릴리스 채널.** 정식 Release는 `main`에서만 나옵니다(`.github/workflows/release.yml`). `releases/latest`가 가리키는 빌드입니다.
-- **`develop` = 스냅샷(테스트) 빌드 채널.** `develop`에 push될 때마다 `.github/workflows/snapshot.yml`이 **prerelease**로 스냅샷을 게시합니다. prerelease라서 `main`의 `releases/latest`에 영향을 주지 않습니다.
-- 일반 작업은 작업 브랜치 → `develop`(PR 머지) 흐름으로 합니다. 정식 릴리스는 `develop` → `main` 머지로 냅니다.
-- `.github/workflows/ci.yml`은 PR(=`develop`/`main` 대상)에서 macOS 15·26 매트릭스로 `swift test`를 돌려 머지 전에 검증합니다.
+빌드는 **태그 기반**입니다. 브랜치 push가 아니라 **태그를 만들면** GitHub Actions가 그 태그로 빌드합니다.
 
-### 0.5. 버저닝 모델 (중요)
+- **정식 릴리스** = `MAJOR.MINOR` 태그(예: `1.0`, `1.1`)를 `main` 커밋에 찍는다 → `release.yml`이 `McDuck-<태그>`(예: `McDuck-1.0`)를 게시. `releases/latest`가 이를 가리킵니다.
+- **스냅샷(테스트)** = `X.Y.Z-SNAPSHOT` 태그(예: `1.0.4-SNAPSHOT`)를 `develop` 커밋에 찍는다 → `snapshot.yml`이 **prerelease** + 이동 태그 `snapshot-latest`로 게시. prerelease라 `releases/latest`에 영향 없음.
+- 코드 흐름은 작업 브랜치 → `develop` → `main`(PR 머지). 빌드는 그 위에 태그를 찍어 트리거합니다.
+- `.github/workflows/ci.yml`은 PR에서 macOS 15·26 매트릭스로 `swift test`만 돌립니다(게시 없음).
 
-`RELEASE_VERSION` 파일은 **현재 개발 라인 `MAJOR.MINOR`** 한 줄을 담습니다(예: `1.0`). `snapshot.yml`과 `release.yml`이 모두 이 값을 기준으로 동작합니다.
-
-- **개발(snapshot, `develop`)**: 라인 안에서 patch가 자동 증가 → `1.0.0-SNAPSHOT`, `1.0.1-SNAPSHOT`, `1.0.2-SNAPSHOT`, …
-- **정식(release, `main` 머지)**: 현재 라인을 단일 **이동 릴리스 `McDuck-<MAJOR.MINOR>`**(예: `McDuck-1.0`)로 게시. `main`에 머지될 때마다 이 릴리스를 최신 빌드로 재생성하며 `releases/latest`가 이를 가리킵니다.
-- **다음 사이클**: `RELEASE_VERSION`의 MINOR를 올립니다(예: `1.0` → `1.1`). 그러면 `develop`은 `1.1.0-SNAPSHOT`부터 다시 시작하고, `main` 머지는 `McDuck-1.1`로 릴리스합니다.
-
-즉 patch 자동 증가는 **스냅샷에만** 있고, 정식 릴리스는 라인 이름(`McDuck-1.0`)으로 고정되며 **MINOR 점프만 수동**입니다.
-
-### 0.6. 한눈에 보는 흐름 + 치트시트
+### 0.5. 한눈에 보는 흐름
 
 ```
-RELEASE_VERSION = 1.0   (현재 개발 라인 = MAJOR.MINOR)
+코드:  작업 브랜치 ──PR──▶ develop ──PR──▶ main
 
-  작업 브랜치 ──PR──▶ develop ──push──▶ snapshot.yml
-                                         └▶ 1.0.0-SNAPSHOT, 1.0.1-SNAPSHOT, ...
-                                            (prerelease + 이동 태그 snapshot-latest)
-                          │
-                          └──PR 머지──▶ main ──push──▶ release.yml
-                                                        └▶ McDuck-1.0
-                                                           (정식, releases/latest, 이동 릴리스)
-
-RELEASE_VERSION = 1.1   ← MINOR만 올리면 다음 사이클로 전환
-  develop ─▶ 1.1.0-SNAPSHOT, 1.1.1-SNAPSHOT, ...      main ─▶ McDuck-1.1
+태그(빌드 트리거):
+  develop 커밋에  X.Y.Z-SNAPSHOT  ──▶ snapshot.yml ──▶ 1.0.4-SNAPSHOT (prerelease) + snapshot-latest
+  main 커밋에     MAJOR.MINOR      ──▶ release.yml  ──▶ McDuck-1.0 (정식, releases/latest)
 ```
 
-remote 세션은 브랜치 직접 push가 막혀 있으므로 **모두 "작업 브랜치 push → GitHub MCP로 PR 생성 → 머지"** 로 합니다.
+### 0.6. 태그로 빌드하기 (치트시트)
 
-**① 개발 스냅샷 내기** (테스트 빌드)
-```
-작업 브랜치 커밋 & push  →  PR (작업 브랜치 → develop)  →  머지
-# 머지되면 snapshot.yml이 다음 1.0.x-SNAPSHOT을 자동 게시
-```
+> 태그 push는 **태그 push 권한이 있는 곳**(로컬 등)에서 합니다. 이 클라우드 remote 세션은 태그 ref push가 `403`으로 막혀 있고 `workflow_dispatch`도 `403`이라, **에이전트는 코드 PR 머지까지만 하고 태그는 사람이 찍습니다.**
 
-**② 정식 릴리스 내기** (현재 라인을 McDuck-<라인>으로)
-```
-PR (develop → main)  →  머지
-# 머지되면 release.yml이 McDuck-1.0을 (재)게시 = releases/latest
+**① 정식 릴리스** (예: 1.0)
+```bash
+git checkout main && git pull
+git tag 1.0           # MAJOR.MINOR (= 버전)
+git push origin 1.0   # → release.yml → McDuck-1.0
 ```
 
-**③ 다음 MINOR 사이클 시작** (예: 1.0 → 1.1)
+**② 스냅샷(테스트) 빌드** (예: 1.0.4-SNAPSHOT)
+```bash
+git checkout develop && git pull
+git tag 1.0.4-SNAPSHOT
+git push origin 1.0.4-SNAPSHOT   # → snapshot.yml → prerelease + snapshot-latest
 ```
-# develop 기준 작업 브랜치에서:
-printf '1.1\n' > RELEASE_VERSION
-git commit -am "Start 1.1 line"  →  push  →  PR(→develop) 머지
-# 이후 스냅샷은 1.1.0-SNAPSHOT부터, main 머지는 McDuck-1.1
-```
 
-> `RELEASE_VERSION`은 **한 줄 `MAJOR.MINOR`**(예: `1.0`)만 둡니다. patch·`-SNAPSHOT`·`v`·`McDuck-` 같은 접두/접미는 워크플로가 알아서 붙입니다.
+- **태그 이름이 곧 버전**입니다(`v`/`McDuck-` 접두사 없이). 정식은 `MAJOR.MINOR`, 스냅샷은 `X.Y.Z-SNAPSHOT`.
+- 태그는 **워크플로가 들어 있는 커밋**(이 태그 기반 전환 이후의 커밋)에 찍어야 빌드됩니다.
+- 대안: Actions UI의 **Run workflow**(`workflow_dispatch`)에 태그명을 입력해도 동일하게 빌드됩니다(태그가 없으면 워크플로가 생성).
 
-### 1. 정식 릴리스 (`main`)
+### 1. release.yml 단계 (정식)
 
-`.github/workflows/release.yml`이 `main` push마다 실행되어 현재 라인을 `McDuck-<MAJOR.MINOR>`로 (재)게시합니다.
+`MAJOR.MINOR` 태그 push(또는 Actions UI의 `workflow_dispatch`) 시 macOS 러너(`runs-on: macos-26`)에서:
 
-| 방법 | 사용 상황 |
-| --- | --- |
-| **`develop` → `main` 머지** | 권장. 현재 `RELEASE_VERSION` 라인을 `McDuck-<라인>`으로 게시. |
-| Actions에서 `workflow_dispatch` 수동 실행(릴리스명 입력, 예: `McDuck-1.1`) | 워크플로가 기본 브랜치에 있을 때(UI 버튼) |
+1. **버전 확인** — 태그명(`1.0`)이 버전, 릴리스명은 `McDuck-1.0`.
+2. **중복 게이트** — 같은 태그의 Release가 이미 있으면 스킵.
+3. **테스트** — `swift test`.
+4. **빌드** — `scripts/build-app.sh`(버전 스탬프 + ad-hoc 서명).
+5. **패키징** — `McDuck-<버전>.pkg`, 안정 이름 `McDuck.pkg`, `McDuck-<버전>-macos.zip`, `.sha256`.
+6. **게시** — `gh release create`로 자산 첨부(자동 릴리스 노트). in-workflow `GITHUB_TOKEN`이 release 생성 권한을 가집니다.
 
-> **remote 세션의 제약(중요):** 이 환경의 git 프록시는 **지정된 작업 브랜치 push만 허용**하고, GitHub MCP 토큰엔 `actions: write`가 없어 `workflow_dispatch`도 막힙니다. 따라서 remote에서는 작업 브랜치를 push한 뒤 **GitHub MCP로 PR을 만들어 `develop`/`main`에 머지**하는 방식으로 빌드를 트리거합니다.
+### 1.5. snapshot.yml 단계 + 설치 (스냅샷)
 
-### 1.5. 스냅샷(테스트) 빌드와 설치 (`develop`)
+`X.Y.Z-SNAPSHOT` 태그 push(또는 `workflow_dispatch`) 시:
 
-`develop`에 변경이 들어올 때마다 `snapshot.yml`이 자동으로:
-
-1. `RELEASE_VERSION` 라인(`MAJOR.MINOR`)의 기존 `MAJOR.MINOR.x-SNAPSHOT` 중 가장 높은 patch를 +1 (없으면 `.0`부터).
-2. `swift test` → `scripts/build-app.sh`로 해당 버전을 스탬프해 빌드.
-3. **버전 고정 prerelease**(예: `1.0.2-SNAPSHOT`)와 **이동 태그 `snapshot-latest`**(매 빌드 재생성)를 게시. 각 릴리스에 `McDuck-<버전>.pkg`, 안정 이름 `McDuck.pkg`, zip, 체크섬, `install-snapshot.sh`를 첨부.
+1. **버전 확인** — 태그명(`1.0.4-SNAPSHOT`)이 버전.
+2. `swift test` → `scripts/build-app.sh`로 스탬프해 빌드.
+3. **버전 고정 prerelease**(예: `1.0.4-SNAPSHOT`)와 **이동 태그 `snapshot-latest`**(매 빌드 재생성)를 게시. 각 릴리스에 `McDuck-<버전>.pkg`, 안정 이름 `McDuck.pkg`, zip, 체크섬, `install-snapshot.sh`를 첨부.
 
 GitHub은 `/snapshot/...` 경로를 제공하지 않으므로 설치는 `releases/...` 경로로 합니다.
 
@@ -136,37 +118,10 @@ GitHub은 `/snapshot/...` 경로를 제공하지 않으므로 설치는 `release
 curl -fsSL https://github.com/hanoseok/McDuck/releases/download/snapshot-latest/install-snapshot.sh | bash
 
 # 특정 스냅샷 버전
-curl -fsSL https://github.com/hanoseok/McDuck/releases/download/1.0.0-SNAPSHOT/install-snapshot.sh | bash
+curl -fsSL https://github.com/hanoseok/McDuck/releases/download/1.0.4-SNAPSHOT/install-snapshot.sh | bash
 ```
 
 `install-snapshot.sh`는 인자 없이 실행하면 `snapshot-latest`의 `McDuck.pkg`를, 태그 인자를 주면 `McDuck-<태그>.pkg`를 받아 설치합니다.
-
-### 2. remote에서 릴리스 / 사이클 진행하기
-
-**같은 라인을 정식 릴리스(또는 갱신):**
-
-1. 작업 브랜치 → `develop` 머지(스냅샷 빌드로 검증).
-2. `develop` → `main` 머지(PR) → `release.yml`이 `McDuck-<현재 라인>`을 (재)게시.
-
-**다음 MINOR 사이클로 넘어가기:**
-
-```bash
-# develop 기준으로 라인을 올린다 (예: 1.0 -> 1.1). 파일 내용은 'MAJOR.MINOR' 한 줄.
-printf '1.1\n' > RELEASE_VERSION
-git add RELEASE_VERSION && git commit -m "Start 1.1 line"
-# 작업 브랜치 → develop 머지: 이후 스냅샷은 1.1.0-SNAPSHOT부터 시작
-# develop → main 머지: McDuck-1.1로 릴리스
-```
-
-`main` push 시 `release.yml`이 macOS 러너(`runs-on: macos-26`)에서 다음 순서로 실행됩니다.
-
-1. **버전 확인** — `workflow_dispatch`면 입력값(예: `McDuck-1.1`), `main` push면 `RELEASE_VERSION` 라인 → `McDuck-<라인>`.
-2. **테스트** — `swift test`.
-3. **빌드** — `scripts/build-app.sh` (라인 버전 스탬프 + ad-hoc 서명).
-4. **패키징** — `ditto`로 `McDuck-<버전>-macos.zip` 압축 + `.sha256` 체크섬 생성.
-5. **게시** — 기존 `McDuck-<라인>` 릴리스/태그를 지우고 이번 커밋에서 재생성(`gh release delete --cleanup-tag` → `gh release create`, 자동 릴리스 노트). 즉 `McDuck-<라인>`은 라인 내 최신 main 빌드를 가리키는 **이동 릴리스**입니다.
-
-테스트가 실패하면 게시 단계가 실행되지 않습니다.
 
 ### 3. 빌드 결과(바이너리) 다운로드
 
@@ -260,7 +215,7 @@ shasum -a 256 -c McDuck-<버전>-macos.zip.sha256
 - 의미 있는 단위로 커밋합니다.
 - push 전에 `git status --short`로 의도하지 않은 파일이 없는지 확인합니다.
 - 생성물(`dist/`), 캐시, 임시 파일은 커밋하지 않습니다.
-- remote(클라우드) 세션에서는 태그 push가 막혀 있으므로, 릴리스는 `RELEASE_VERSION`을 바꿔 작업 브랜치에 push하는 방식으로 냅니다.
+- 빌드는 **태그 기반**입니다. 정식은 `main`에 `MAJOR.MINOR` 태그(`1.0`), 스냅샷은 `develop`에 `X.Y.Z-SNAPSHOT` 태그(`1.0.4-SNAPSHOT`)를 찍어 트리거합니다. remote(클라우드) 세션은 태그 ref push가 막혀 있어, 에이전트는 코드 PR 머지까지만 하고 **태그는 사람이 찍습니다**.
 
 ## 문서 규칙
 
