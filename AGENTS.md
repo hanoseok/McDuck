@@ -69,6 +69,47 @@ scripts/build-app.sh
 
 즉 patch 자동 증가는 **스냅샷에만** 있고, 정식 릴리스는 라인 이름(`McDuck-1.0`)으로 고정되며 **MINOR 점프만 수동**입니다.
 
+### 0.6. 한눈에 보는 흐름 + 치트시트
+
+```
+RELEASE_VERSION = 1.0   (현재 개발 라인 = MAJOR.MINOR)
+
+  작업 브랜치 ──PR──▶ develop ──push──▶ snapshot.yml
+                                         └▶ 1.0.0-SNAPSHOT, 1.0.1-SNAPSHOT, ...
+                                            (prerelease + 이동 태그 snapshot-latest)
+                          │
+                          └──PR 머지──▶ main ──push──▶ release.yml
+                                                        └▶ McDuck-1.0
+                                                           (정식, releases/latest, 이동 릴리스)
+
+RELEASE_VERSION = 1.1   ← MINOR만 올리면 다음 사이클로 전환
+  develop ─▶ 1.1.0-SNAPSHOT, 1.1.1-SNAPSHOT, ...      main ─▶ McDuck-1.1
+```
+
+remote 세션은 브랜치 직접 push가 막혀 있으므로 **모두 "작업 브랜치 push → GitHub MCP로 PR 생성 → 머지"** 로 합니다.
+
+**① 개발 스냅샷 내기** (테스트 빌드)
+```
+작업 브랜치 커밋 & push  →  PR (작업 브랜치 → develop)  →  머지
+# 머지되면 snapshot.yml이 다음 1.0.x-SNAPSHOT을 자동 게시
+```
+
+**② 정식 릴리스 내기** (현재 라인을 McDuck-<라인>으로)
+```
+PR (develop → main)  →  머지
+# 머지되면 release.yml이 McDuck-1.0을 (재)게시 = releases/latest
+```
+
+**③ 다음 MINOR 사이클 시작** (예: 1.0 → 1.1)
+```
+# develop 기준 작업 브랜치에서:
+printf '1.1\n' > RELEASE_VERSION
+git commit -am "Start 1.1 line"  →  push  →  PR(→develop) 머지
+# 이후 스냅샷은 1.1.0-SNAPSHOT부터, main 머지는 McDuck-1.1
+```
+
+> `RELEASE_VERSION`은 **한 줄 `MAJOR.MINOR`**(예: `1.0`)만 둡니다. patch·`-SNAPSHOT`·`v`·`McDuck-` 같은 접두/접미는 워크플로가 알아서 붙입니다.
+
 ### 1. 정식 릴리스 (`main`)
 
 `.github/workflows/release.yml`이 `main` push마다 실행되어 현재 라인을 `McDuck-<MAJOR.MINOR>`로 (재)게시합니다.
