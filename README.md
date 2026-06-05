@@ -61,7 +61,7 @@ Or download `McDuck-<tag>.pkg` from the [Releases](https://github.com/hanoseok/M
 
 ## Releases And Build Pipeline
 
-Releases are built on a macOS GitHub Actions runner. Bump `RELEASE_VERSION` (e.g. `v1.2.0`) and push to the working branch to trigger a versioned GitHub Release with a `.pkg`, a `.zip`, an installer script, and checksums.
+Releases are built on a macOS GitHub Actions runner. `develop` publishes auto-incrementing snapshot prereleases (`1.0.0-SNAPSHOT`, `1.0.1-SNAPSHOT`, …) for the current `MAJOR.MINOR` line held in `RELEASE_VERSION`; merging `develop` → `main` publishes the official moving release `McDuck-<MAJOR.MINOR>` (e.g. `McDuck-1.0`) with a `.pkg`, a `.zip`, an installer script, and checksums. Bump `RELEASE_VERSION`'s MINOR (e.g. `1.0` → `1.1`) to start the next cycle.
 
 See **[docs/BUILD.md](docs/BUILD.md)** for the full build, versioning, release, install, and signing/notarization guide.
 

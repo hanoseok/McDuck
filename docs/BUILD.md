@@ -40,52 +40,53 @@ MCDUCK_VERSION=1.2.0 MCDUCK_BUILD=42 scripts/build-app.sh
 
 ## 3. 버저닝 규칙
 
-- 버전은 **저장소 루트의 `RELEASE_VERSION` 파일** 한 줄(`vX.Y.Z`)로 관리합니다.
-- semver를 사용하고, **한 번 게시한 버전은 재사용하지 않습니다.**
-- 빌드된 앱 번들에는 이 버전이 스탬프되며, 앱 팝오버 푸터에 `vX.Y.Z`로 표시됩니다.
+- `RELEASE_VERSION` 파일 한 줄은 **현재 개발 라인 `MAJOR.MINOR`**(예: `1.0`)입니다. `snapshot.yml`·`release.yml`이 이 값을 기준으로 동작합니다.
+- **개발(`develop`)**: 라인 안에서 patch가 자동 증가하는 스냅샷 prerelease — `1.0.0-SNAPSHOT`, `1.0.1-SNAPSHOT`, ….
+- **정식(`main` 머지)**: 현재 라인을 이동 릴리스 **`McDuck-<MAJOR.MINOR>`**(예: `McDuck-1.0`)로 게시. `releases/latest`가 이를 가리킵니다.
+- **다음 사이클**: `RELEASE_VERSION`의 MINOR를 올리면(예: `1.0` → `1.1`) `develop`은 `1.1.0-SNAPSHOT`부터, `main`은 `McDuck-1.1`로 전환됩니다.
+- 빌드 앱 번들엔 라인 버전이 스탬프되어 푸터에 `v1.0`처럼 표시됩니다.
 
 ---
 
 ## 4. 원격 릴리스 (권장 흐름)
 
-릴리스는 `.github/workflows/release.yml`이 macOS 러너에서 처리합니다. **세 가지 트리거** 모두 같은 결과(태그 + GitHub Release)를 만듭니다.
+정식 릴리스는 `.github/workflows/release.yml`이 `main` push마다 macOS 러너에서 처리합니다.
 
 | 방법 | 사용 상황 |
 | --- | --- |
-| **`RELEASE_VERSION` 수정 후 작업 브랜치 push** | 권장. 태그 push 권한이 없는 클라우드 세션에서도 동작. |
-| 버전 태그 push (`git tag v1.2.0 && git push origin v1.2.0`) | 로컬/CI에서 태그 push 권한이 있을 때. |
-| Actions에서 `workflow_dispatch` 수동 실행(버전 입력) | 워크플로가 기본 브랜치에 있을 때. |
+| **`develop` → `main` 머지** | 권장. 현재 `RELEASE_VERSION` 라인을 `McDuck-<라인>`으로 (재)게시. 클라우드 세션에서도 PR 머지로 동작. |
+| Actions에서 `workflow_dispatch` 수동 실행(릴리스명 입력, 예: `McDuck-1.1`) | 워크플로가 기본 브랜치에 있을 때. |
 
-### `RELEASE_VERSION` 흐름
+### 사이클 전환 흐름
 
 ```bash
-printf 'v1.2.0\n' > RELEASE_VERSION
+# develop 기준으로 라인을 올린다 (예: 1.0 -> 1.1). 파일 내용은 'MAJOR.MINOR' 한 줄.
+printf '1.1\n' > RELEASE_VERSION
 git add RELEASE_VERSION
-git commit -m "Release v1.2.0"
-git push origin <branch>     # 이 push가 워크플로를 트리거
+git commit -m "Start 1.1 line"
+# 작업 브랜치 → develop 머지(스냅샷 1.1.0-SNAPSHOT~) → develop → main 머지(McDuck-1.1)
 ```
 
 ### 워크플로 단계
 
-1. **버전 확인** — dispatch면 입력값, 태그 push면 태그명, 브랜치 push면 `RELEASE_VERSION` 내용.
-2. **중복 게이트** — 해당 버전 Release가 이미 있으면 빌드 스킵(무관한 커밋 push가 재릴리스되지 않도록). 즉 **Release 존재 = 빌드·테스트 통과**.
-3. **테스트** — `swift test`.
-4. **빌드** — `scripts/build-app.sh` (버전 스탬프 + ad-hoc 서명).
-5. **패키징**
+1. **버전 확인** — dispatch면 입력값(예: `McDuck-1.1`), `main` push면 `RELEASE_VERSION` 라인 → `McDuck-<라인>`.
+2. **테스트** — `swift test`.
+3. **빌드** — `scripts/build-app.sh` (라인 버전 스탬프 + ad-hoc 서명).
+4. **패키징**
    - `.pkg` — `pkgbuild`로 `/Applications` 설치 패키지 생성. `postinstall`이 실행 중 McDuck 종료 → quarantine 제거 → 콘솔 사용자로 실행.
    - `.zip` — `McDuck.app` + `Install McDuck.command`(관리자 암호로 설치/실행).
    - 체크섬(`.sha256`).
-6. **게시** — `gh release create`로 자산 첨부(in-workflow `GITHUB_TOKEN`이 release/tag 생성).
+5. **게시** — 기존 `McDuck-<라인>` 릴리스/태그를 지우고(`gh release delete --cleanup-tag`) 이번 커밋에서 재생성(`gh release create`). `McDuck-<라인>`은 라인 내 최신 main 빌드를 가리키는 이동 릴리스입니다.
 
 ### 릴리스 자산
 
 | 자산 | 용도 |
 | --- | --- |
-| `McDuck-<tag>.pkg` | 버전 표기된 설치 패키지 |
+| `McDuck-<버전>.pkg` | 버전 표기된 설치 패키지 |
 | `McDuck.pkg` | **고정 이름** — `releases/latest/download/McDuck.pkg`로 API 없이 받기 위함 |
-| `McDuck-<tag>-macos.zip` | 앱 + `Install McDuck.command` |
+| `McDuck-<버전>-macos.zip` | 앱 + `Install McDuck.command` |
 | `install.sh` | 한 줄 설치 스크립트 |
-| `McDuck-<tag>-checksums.sha256` | 체크섬 |
+| `McDuck-<버전>-checksums.sha256` | 체크섬 |
 
 ---
 
@@ -105,7 +106,7 @@ curl -fsSL https://github.com/hanoseok/McDuck/releases/download/v0.0.20/install.
 
 ### B. `.pkg` 더블클릭
 
-`McDuck-<tag>.pkg`(또는 `McDuck.pkg`) 더블클릭 → 설치 마법사 → 설치 + 자동 실행.
+`McDuck-<버전>.pkg`(또는 `McDuck.pkg`) 더블클릭 → 설치 마법사 → 설치 + 자동 실행.
 
 > 브라우저로 받은 pkg는 공증이 없어 첫 실행 시 Gatekeeper가 막을 수 있습니다. **우클릭 → 열기**, 또는 한 번만 `xattr -dr com.apple.quarantine <pkg>` 후 열기.
 
@@ -113,8 +114,8 @@ curl -fsSL https://github.com/hanoseok/McDuck/releases/download/v0.0.20/install.
 
 ```bash
 cd ~/Downloads
-unzip -o McDuck-<tag>-macos.zip
-bash "McDuck-<tag>/Install McDuck.command"   # 관리자 암호로 설치 + quarantine 제거
+unzip -o McDuck-<버전>-macos.zip
+bash "McDuck-<버전>/Install McDuck.command"   # 관리자 암호로 설치 + quarantine 제거
 ```
 
 ### D. 수동
@@ -127,7 +128,7 @@ open McDuck.app
 ### 무결성 확인(선택)
 
 ```bash
-shasum -a 256 -c McDuck-<tag>-checksums.sha256
+shasum -a 256 -c McDuck-<버전>-checksums.sha256
 ```
 
 ---
