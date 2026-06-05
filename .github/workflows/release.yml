@@ -1,23 +1,21 @@
 name: Release
 
-# Build McDuck from `main` and publish it as the official GitHub Release for
-# the current development line. The line is MAJOR.MINOR, held in RELEASE_VERSION
-# (e.g. "1.0"). Every push to main (re)publishes a single moving release named
-# `McDuck-<line>` (e.g. McDuck-1.0) — the one `releases/latest` points to.
+# Build McDuck and publish the official GitHub Release when a release tag is
+# pushed (tag-based releases). Release tags are MAJOR.MINOR (e.g. `1.0`, `1.1`),
+# cut on a `main` commit; the published release is named `McDuck-<tag>`
+# (e.g. McDuck-1.0) and `releases/latest` points to the newest one.
 #
-# Versioning flow (paired with snapshot.yml on develop):
-#   - develop publishes snapshots: 1.0.0-SNAPSHOT, 1.0.1-SNAPSHOT, ...
-#   - merge to main -> official release McDuck-1.0
-#   - to start the next cycle, bump RELEASE_VERSION's MINOR to "1.1": develop
-#     then snapshots 1.1.0-SNAPSHOT..., and main releases McDuck-1.1.
+#   git tag 1.0 && git push origin 1.0      # -> builds & publishes McDuck-1.0
+#
+# (Snapshots are a separate tag-based channel; see snapshot.yml.)
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "[0-9]+.[0-9]+"          # 1.0, 1.1, 2.0, ...  (not X.Y.Z-SNAPSHOT)
   workflow_dispatch:
     inputs:
       version:
-        description: "Release name to publish, e.g. McDuck-1.1"
+        description: "Release tag to build, e.g. 1.0"
         required: true
         type: string
 
@@ -41,35 +39,47 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             TAG="${{ inputs.version }}"
           else
-            # main push: release the current development line as McDuck-MAJOR.MINOR.
-            LINE="$(tr -d '[:space:]' < RELEASE_VERSION)"; LINE="${LINE#v}"
-            IFS=. read -r MAJ MIN REST <<< "$LINE"
-            TAG="McDuck-${MAJ}.${MIN}"
+            TAG="${GITHUB_REF_NAME}"
           fi
-          # Numeric version for stamping/pkgbuild: strip the McDuck-/v prefixes.
-          SHORT="${TAG#McDuck-}"; SHORT="${SHORT#v}"
+          # Numeric version for stamping/pkgbuild; the release is named McDuck-<short>.
+          SHORT="${TAG#v}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "short=$SHORT" >> "$GITHUB_OUTPUT"
-          echo "Resolved release: $TAG (version $SHORT)"
+          echo "Resolved release: McDuck-$SHORT (tag $TAG)"
+
+      - name: Skip if release already exists
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "Release ${{ steps.version.outputs.tag }} already exists; skipping."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Select latest Xcode
+        if: steps.gate.outputs.release == 'true'
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
 
       - name: Run tests
+        if: steps.gate.outputs.release == 'true'
         run: swift test
 
       - name: Build app bundle
+        if: steps.gate.outputs.release == 'true'
         env:
           MCDUCK_VERSION: ${{ steps.version.outputs.short }}
           MCDUCK_BUILD: ${{ github.run_number }}
         run: scripts/build-app.sh
 
       - name: Package app
+        if: steps.gate.outputs.release == 'true'
         id: package
         run: |
-          TAG="${{ steps.version.outputs.tag }}"
           SHORT="${{ steps.version.outputs.short }}"
 
           # --- .pkg installer (double-click -> macOS Installer GUI) ---
@@ -86,8 +96,7 @@ jobs:
             --install-location / \
             --scripts scripts/pkg-scripts \
             "$PKG"
-          # Stable, version-independent name so the installer can fetch it via
-          # /releases/latest/download/McDuck.pkg without calling the GitHub API.
+          # Stable name so /releases/latest/download/McDuck.pkg always resolves.
           cp "$PKG" "McDuck.pkg"
 
           # --- .zip (app + double-clickable installer script) ---
@@ -98,7 +107,6 @@ jobs:
           cp scripts/install.command "$STAGE/Install McDuck.command"
           chmod +x "$STAGE/Install McDuck.command"
           ARTIFACT="McDuck-$SHORT-macos.zip"
-          # ditto preserves the macOS bundle structure and metadata.
           ditto -c -k --sequesterRsrc --keepParent "$STAGE" "$ARTIFACT"
 
           CHECKSUMS="McDuck-$SHORT-checksums.sha256"
@@ -108,30 +116,19 @@ jobs:
           echo "artifact=$ARTIFACT" >> "$GITHUB_OUTPUT"
           echo "checksums=$CHECKSUMS" >> "$GITHUB_OUTPUT"
 
-      - name: Publish official release
+      - name: Create GitHub Release
+        if: steps.gate.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          ASSETS=(
-            "${{ steps.package.outputs.pkg }}"
-            "McDuck.pkg"
-            "${{ steps.package.outputs.artifact }}"
-            "${{ steps.package.outputs.checksums }}"
-            "scripts/install.sh"
-          )
-          # McDuck-<line> is a single moving release for the whole line: drop the
-          # old release+tag and re-create it on this commit so it always reflects
-          # the latest main build and stays `releases/latest` until the next
-          # cycle (McDuck-1.1) begins.
-          gh release delete "$TAG" --yes --cleanup-tag || true
-          for attempt in 1 2 3 4 5; do
-            if gh release create "$TAG" "${ASSETS[@]}" \
-                 --title "$TAG" \
-                 --target "$GITHUB_SHA" \
-                 --generate-notes; then
-              break
-            fi
-            echo "release create failed (attempt $attempt); retrying..."
-            sleep 5
-          done
+          # The tag already exists for a tag push; --target creates it for a
+          # workflow_dispatch run.
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "${{ steps.package.outputs.pkg }}" \
+            "McDuck.pkg" \
+            "${{ steps.package.outputs.artifact }}" \
+            "${{ steps.package.outputs.checksums }}" \
+            "scripts/install.sh" \
+            --title "McDuck-${{ steps.version.outputs.short }}" \
+            --target "${{ github.sha }}" \
+            --generate-notes

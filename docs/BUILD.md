@@ -38,45 +38,44 @@ MCDUCK_VERSION=1.2.0 MCDUCK_BUILD=42 scripts/build-app.sh
 
 ---
 
-## 3. 버저닝 규칙
+## 3. 버저닝 규칙 (태그 기반)
 
-- `RELEASE_VERSION` 파일 한 줄은 **현재 개발 라인 `MAJOR.MINOR`**(예: `1.0`)입니다. `snapshot.yml`·`release.yml`이 이 값을 기준으로 동작합니다.
-- **개발(`develop`)**: 라인 안에서 patch가 자동 증가하는 스냅샷 prerelease — `1.0.0-SNAPSHOT`, `1.0.1-SNAPSHOT`, ….
-- **정식(`main` 머지)**: 현재 라인을 이동 릴리스 **`McDuck-<MAJOR.MINOR>`**(예: `McDuck-1.0`)로 게시. `releases/latest`가 이를 가리킵니다.
-- **다음 사이클**: `RELEASE_VERSION`의 MINOR를 올리면(예: `1.0` → `1.1`) `develop`은 `1.1.0-SNAPSHOT`부터, `main`은 `McDuck-1.1`로 전환됩니다.
-- 빌드 앱 번들엔 라인 버전이 스탬프되어 푸터에 `v1.0`처럼 표시됩니다.
+빌드는 **태그**로 트리거됩니다. 태그 이름이 곧 버전입니다(`v`/`McDuck-` 접두사 없음).
+
+- **정식(`main`)**: `MAJOR.MINOR` 태그(예: `1.0`, `1.1`) → `release.yml` → 릴리스 `McDuck-1.0`. `releases/latest`가 이를 가리킵니다.
+- **스냅샷(`develop`)**: `X.Y.Z-SNAPSHOT` 태그(예: `1.0.4-SNAPSHOT`) → `snapshot.yml` → prerelease + 이동 `snapshot-latest`.
+- 빌드 앱 번들엔 태그 버전이 스탬프되어 푸터에 `v1.0`처럼 표시됩니다.
 
 ---
 
-## 4. 원격 릴리스 (권장 흐름)
+## 4. 태그로 릴리스하기
 
-정식 릴리스는 `.github/workflows/release.yml`이 `main` push마다 macOS 러너에서 처리합니다.
+정식 릴리스는 `.github/workflows/release.yml`이 `MAJOR.MINOR` 태그 push 시 macOS 러너에서 처리합니다.
+
+```bash
+git checkout main && git pull
+git tag 1.0            # = 버전
+git push origin 1.0    # → release.yml → McDuck-1.0
+```
 
 | 방법 | 사용 상황 |
 | --- | --- |
-| **`develop` → `main` 머지** | 권장. 현재 `RELEASE_VERSION` 라인을 `McDuck-<라인>`으로 (재)게시. 클라우드 세션에서도 PR 머지로 동작. |
-| Actions에서 `workflow_dispatch` 수동 실행(릴리스명 입력, 예: `McDuck-1.1`) | 워크플로가 기본 브랜치에 있을 때. |
+| **`main`에 `MAJOR.MINOR` 태그 push** | 권장. 태그 push 권한이 있는 로컬 등에서. |
+| Actions UI의 **Run workflow**(`workflow_dispatch`, 태그명 입력) | 권한이 있을 때. 태그가 없으면 워크플로가 생성. |
 
-### 사이클 전환 흐름
-
-```bash
-# develop 기준으로 라인을 올린다 (예: 1.0 -> 1.1). 파일 내용은 'MAJOR.MINOR' 한 줄.
-printf '1.1\n' > RELEASE_VERSION
-git add RELEASE_VERSION
-git commit -m "Start 1.1 line"
-# 작업 브랜치 → develop 머지(스냅샷 1.1.0-SNAPSHOT~) → develop → main 머지(McDuck-1.1)
-```
+> 태그는 **워크플로가 들어 있는 커밋**(태그 기반 전환 이후)에 찍어야 합니다. 클라우드 remote 세션은 태그 ref push·`workflow_dispatch`가 모두 `403`이라, 에이전트는 코드 PR 머지까지만 하고 태그는 사람이 찍습니다.
 
 ### 워크플로 단계
 
-1. **버전 확인** — dispatch면 입력값(예: `McDuck-1.1`), `main` push면 `RELEASE_VERSION` 라인 → `McDuck-<라인>`.
-2. **테스트** — `swift test`.
-3. **빌드** — `scripts/build-app.sh` (라인 버전 스탬프 + ad-hoc 서명).
-4. **패키징**
+1. **버전 확인** — 태그명(예: `1.0`)이 버전, 릴리스명 `McDuck-1.0`.
+2. **중복 게이트** — 같은 태그 Release가 있으면 스킵.
+3. **테스트** — `swift test`.
+4. **빌드** — `scripts/build-app.sh` (버전 스탬프 + ad-hoc 서명).
+5. **패키징**
    - `.pkg` — `pkgbuild`로 `/Applications` 설치 패키지 생성. `postinstall`이 실행 중 McDuck 종료 → quarantine 제거 → 콘솔 사용자로 실행.
    - `.zip` — `McDuck.app` + `Install McDuck.command`(관리자 암호로 설치/실행).
    - 체크섬(`.sha256`).
-5. **게시** — 기존 `McDuck-<라인>` 릴리스/태그를 지우고(`gh release delete --cleanup-tag`) 이번 커밋에서 재생성(`gh release create`). `McDuck-<라인>`은 라인 내 최신 main 빌드를 가리키는 이동 릴리스입니다.
+6. **게시** — `gh release create`로 자산 첨부(자동 릴리스 노트).
 
 ### 릴리스 자산
 
