@@ -2,15 +2,16 @@ name: CI
 
 # Runs the McDuckCore test suite on macOS runners. The Linux cloud session
 # can't build SwiftUI/macOS targets locally, so this workflow is how test
-# changes are verified before a release. It does not publish anything.
+# changes are verified. It does not publish anything.
+#
+# Runs on every pull request (into develop or main) so changes are verified
+# before they merge; develop/main pushes are covered by snapshot.yml/release.yml.
 #
 # The suite must pass on both the minimum supported OS (macOS 15, per
 # Package.swift's .macOS(.v15)) and the release OS (macOS 26), so both are
 # exercised in a matrix.
 on:
-  push:
-    branches:
-      - "claude/brave-hamilton-YzkbK"
+  pull_request:
   workflow_dispatch:
 
 concurrency:

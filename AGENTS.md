@@ -52,17 +52,44 @@ scripts/build-app.sh
 
 > **왜 remote인가:** McDuck은 macOS 26 네이티브 앱이라 Linux 컨테이너(클라우드 세션)에서는 직접 빌드할 수 없습니다. 그래서 GitHub Actions의 **macOS 러너**에서 빌드하고, 결과물 `.app`을 **GitHub Release**에 올려 내려받아 실행합니다.
 
-### 1. 빌드 트리거 방법
+### 0. 브랜치 전략과 릴리스 채널 (중요)
 
-릴리스 빌드는 `.github/workflows/release.yml`이 담당하며, 세 가지로 트리거됩니다. 모두 같은 결과(태그 + Release)를 만듭니다.
+- **`main` = 정식 릴리스 채널.** 정식 Release는 `main`에서만 나옵니다(`.github/workflows/release.yml`). `releases/latest`가 가리키는 빌드입니다.
+- **`develop` = 스냅샷(테스트) 빌드 채널.** `develop`에 push될 때마다 `.github/workflows/snapshot.yml`이 **prerelease**로 스냅샷을 게시합니다. prerelease라서 `main`의 `releases/latest`에 영향을 주지 않습니다.
+- 일반 작업은 작업 브랜치 → `develop`(PR 머지) 흐름으로 합니다. 정식 릴리스는 `develop` → `main`을 머지하면서 `RELEASE_VERSION`을 올려 냅니다.
+- `.github/workflows/ci.yml`은 PR(=`develop`/`main` 대상)에서 macOS 15·26 매트릭스로 `swift test`를 돌려 머지 전에 검증합니다.
+
+### 1. 정식 릴리스 빌드 트리거 (`main`)
+
+정식 릴리스 빌드는 `.github/workflows/release.yml`이 담당하며, 세 가지로 트리거됩니다. 모두 같은 결과(태그 + Release)를 만듭니다.
 
 | 방법 | 사용 상황 |
 | --- | --- |
-| **`RELEASE_VERSION` 파일 수정 후 작업 브랜치에 push** | **remote 전용 흐름.** 클라우드 세션은 태그 push와 `workflow_dispatch`가 권한상 막혀 있어, 작업 브랜치 push가 유일하게 가능한 트리거입니다. |
+| **`RELEASE_VERSION` 파일 수정 후 `main`에 push/머지** | `develop` → `main` 머지 시 `RELEASE_VERSION`을 올리면 release.yml이 그 버전으로 빌드·게시합니다. |
 | 버전 태그 push (`git tag v1.2.0 && git push origin v1.2.0`) | 로컬/CI에서 태그 push 권한이 있을 때 |
 | Actions에서 `workflow_dispatch` 수동 실행(버전 입력) | 워크플로가 기본 브랜치에 있을 때(UI 버튼) |
 
-> **remote 세션의 제약(중요):** 이 환경의 git 프록시는 **지정된 작업 브랜치 push만 허용**하고 태그 ref push는 `403`으로 막습니다. GitHub MCP 토큰에도 `actions: write`가 없어 `workflow_dispatch` 호출도 `403`입니다. 따라서 remote에서 릴리스를 내는 정식 방법은 아래 **`RELEASE_VERSION` 흐름**입니다.
+> **remote 세션의 제약(중요):** 이 환경의 git 프록시는 **지정된 작업 브랜치 push만 허용**하고 태그 ref push는 `403`으로 막습니다. GitHub MCP 토큰에도 `actions: write`가 없어 `workflow_dispatch` 호출도 `403`입니다. 따라서 remote에서는 작업 브랜치를 push한 뒤 **GitHub MCP로 PR을 만들어 `develop`/`main`에 머지**하는 방식으로 빌드를 트리거합니다.
+
+### 1.5. 스냅샷(테스트) 빌드와 설치 (`develop`)
+
+`develop`에 변경이 들어올 때마다 `snapshot.yml`이 자동으로:
+
+1. 기존 `X.Y.Z-SNAPSHOT` 릴리스 중 가장 높은 버전의 patch를 +1 (없으면 `1.0.0-SNAPSHOT`부터).
+2. `swift test` → `scripts/build-app.sh`로 해당 버전을 스탬프해 빌드.
+3. **버전 고정 prerelease**(예: `1.0.3-SNAPSHOT`)와 **이동 태그 `snapshot-latest`**(매 빌드 재생성)를 게시. 각 릴리스에 `McDuck-<버전>.pkg`, 안정 이름 `McDuck.pkg`, zip, 체크섬, `install-snapshot.sh`를 첨부.
+
+GitHub은 `/snapshot/...` 경로를 제공하지 않으므로 설치는 `releases/...` 경로로 합니다.
+
+```bash
+# 최신 스냅샷
+curl -fsSL https://github.com/hanoseok/McDuck/releases/download/snapshot-latest/install-snapshot.sh | bash
+
+# 특정 스냅샷 버전
+curl -fsSL https://github.com/hanoseok/McDuck/releases/download/1.0.0-SNAPSHOT/install-snapshot.sh | bash
+```
+
+`install-snapshot.sh`는 인자 없이 실행하면 `snapshot-latest`의 `McDuck.pkg`를, 태그 인자를 주면 `McDuck-<태그>.pkg`를 받아 설치합니다.
 
 ### 2. remote에서 새 버전 릴리스하기 (`RELEASE_VERSION` 흐름)
 
