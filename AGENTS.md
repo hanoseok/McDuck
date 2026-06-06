@@ -244,6 +244,7 @@ shasum -a 256 -c McDuck-<버전>-macos.zip.sha256
 - **`Bundle.module`을 쓰지 않습니다.** SwiftPM의 리소스 번들 접근자는 수동 조립된 `.app`에서 번들을 못 찾아 **실행 즉시 `Fatal error`로 크래시**합니다(`McDuck_McDuck.bundle`를 `.app` 최상위에서 찾음). 이미지는 `Bundle.main`(=`Contents/Resources`) 또는 컴파일된 `Assets.car`에서 로드합니다.
 - **`swift build`는 `.xcassets`를 컴파일하지 않습니다.** 에셋 카탈로그는 `build-app.sh`에서 `actool`로 `Assets.car`를 만들어 메인 번들에 넣습니다.
 - **메뉴바 커스텀 아이콘은 "이름 있는 에셋 이미지"** 를 씁니다(`MenuBarExtra(image:)` / `Image("name")`). `Image(nsImage:)`는 메뉴바 라벨에서 표시되지 않을 수 있습니다.
+- **메뉴바 라벨은 한 줄 높이(~22pt)** 입니다. `MenuBarExtra` 라벨에 `VStack`으로 2줄을 넣으면 아래 줄이 클리핑되어 윗줄만 보입니다. 여러 값은 한 줄(`A · B`)로 묶어 표시합니다(예: `MenuBarLabel`의 토큰·비용).
 
 ## 구현 규칙
 

@@ -41,7 +41,7 @@
 - **Claude Code 플러그인(`plugin/`)**: MCP 서버 + `usage-report` 스킬을 묶은 플러그인. `/plugin marketplace add hanoseok/McDuck` 후 `/plugin install mcduck@mcduck`로 설치.
 - **앱에 플러그인 동봉**: `McDuck.app`에 마켓플레이스+플러그인+프리빌트 `mcduck-mcp` 바이너리를 넣어, 앱을 설치하면 네트워크·툴체인 없이 로컬 경로로 마켓플레이스를 등록·설치할 수 있습니다.
 - **설정에서 플러그인 등록/제거**: 설정 패널에서 미설치면 "Add to Claude Code", 설치돼 있으면 "Remove from Claude Code" 버튼을 보여줍니다. `claude` CLI를 먼저 시도하고, 실패 시 `~/.claude/settings.json`의 마켓플레이스 등록·`enabledPlugins`를 안전 병합으로 추가/제거합니다(재시작/`/reload-plugins`로 적용).
-- **메뉴바 라벨(기간 선택)**: 메뉴바 아이콘 옆에 선택한 기간의 토큰(위)·비용(아래)을 2줄로 표시합니다. 헤더 기어 설정에서 **None / Today / Week / Month / Total**을 선택(UserDefaults에 저장)하며 기본값은 Today입니다.
+- **메뉴바 라벨(기간 선택)**: 메뉴바 아이콘 옆에 선택한 기간의 토큰·비용을 한 줄(`토큰 · 비용`)로 표시합니다. 헤더 기어 설정에서 **None / Today / Week / Month / Total**을 선택(UserDefaults에 저장)하며 기본값은 Today입니다. (메뉴바는 한 줄 높이라 2줄은 표시되지 않아 한 줄로 묶음.)
 - **로그인 시 자동 실행**: 헤더 우측 상단 기어 버튼의 설정 패널에서 `SMAppService.mainApp`로 로그인 항목을 토글합니다(승인 필요 시 시스템 설정 안내).
 - **설치 스크립트 버전 표시**: `install.sh`/`install-snapshot.sh`가 다운로드·설치·완료 메시지에 버전을 표시합니다(예: `Installing McDuck v1.0`). latest 설치 시 `releases/latest` 리다이렉트로 실제 버전을 해석합니다.
 - **자정 날짜 롤오버**: 토큰박스를 직접 클릭하지 않았으면 00시가 지나면 기본 선택일이 다음 날로 자동 이동합니다.
