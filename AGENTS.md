@@ -130,6 +130,14 @@ git commit -am "ci: cut 1.1.0-SNAPSHOT" && git push -u origin <작업브랜치> 
 
 > 확인: 머지 후 `cut.yml`(브리지) → `snapshot.yml`/`release.yml` 런이 성공하고, 해당 태그의 Release가 생겼는지 본다. 빌드는 macOS 러너에서 ~1분.
 
+> **스냅샷을 냈으면 설치 주소를 알려준다.** 스냅샷 빌드를 트리거(또는 게시 확인)한 뒤에는 항상 사용자에게 설치 명령을 함께 안내한다.
+> ```bash
+> # 최신 스냅샷
+> curl -fsSL https://github.com/hanoseok/McDuck/releases/download/snapshot-latest/install-snapshot.sh | bash
+> # 특정 버전 (예: 1.1.0-SNAPSHOT)
+> curl -fsSL https://github.com/hanoseok/McDuck/releases/download/1.1.0-SNAPSHOT/install-snapshot.sh | bash
+> ```
+
 ### 1. release.yml 단계 (정식)
 
 `MAJOR.MINOR` 태그 push(또는 Actions UI의 `workflow_dispatch`) 시 macOS 러너(`runs-on: macos-26`)에서:
