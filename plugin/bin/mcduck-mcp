@@ -18,10 +18,21 @@ if [ -n "${MCDUCK_MCP_BIN:-}" ] && [ -x "${MCDUCK_MCP_BIN}" ]; then
   exec "${MCDUCK_MCP_BIN}" "$@"
 fi
 
-# 2) Prebuilt binary shipped alongside the launcher (attached by the release).
+# 2) Prebuilt binary shipped alongside the launcher (bundled in the plugin /
+#    attached by the release).
 if [ -x "${BIN_DIR}/mcduck-mcp-bin" ]; then
   exec "${BIN_DIR}/mcduck-mcp-bin" "$@"
 fi
+
+# 2b) A binary bundled inside an installed McDuck.app (the menu-bar app ships
+#     the server in Contents/Resources/ClaudePlugin/plugin/bin).
+for app_bin in \
+  "/Applications/McDuck.app/Contents/Resources/ClaudePlugin/plugin/bin/mcduck-mcp-bin" \
+  "${HOME}/Applications/McDuck.app/Contents/Resources/ClaudePlugin/plugin/bin/mcduck-mcp-bin"; do
+  if [ -x "${app_bin}" ]; then
+    exec "${app_bin}" "$@"
+  fi
+done
 
 # 3) A previously built product in the package's build dir.
 if [ -x "${REPO_ROOT}/.build/release/mcduck-mcp" ]; then
