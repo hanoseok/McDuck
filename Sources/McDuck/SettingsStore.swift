@@ -12,6 +12,7 @@ final class SettingsStore {
         case icon
         case cost
         case tokens
+        case both
 
         var id: String { rawValue }
 
@@ -21,6 +22,7 @@ final class SettingsStore {
             case .icon: "Icon"
             case .cost: "Cost"
             case .tokens: "Tokens"
+            case .both: "Both"
             }
         }
     }
