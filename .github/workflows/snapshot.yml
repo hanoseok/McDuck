@@ -62,6 +62,15 @@ jobs:
           MCDUCK_BUILD: ${{ github.run_number }}
         run: scripts/build-app.sh
 
+      # The plugin's MCP server binary. Non-fatal: if it fails to build, the
+      # release still publishes and the plugin launcher falls back to building
+      # from source.
+      - name: Build MCP server binary
+        continue-on-error: true
+        run: |
+          swift build -c release --product mcduck-mcp
+          cp .build/release/mcduck-mcp mcduck-mcp-macos
+
       - name: Package app
         id: package
         run: |
@@ -113,6 +122,8 @@ jobs:
             "${{ steps.package.outputs.checksums }}"
             "scripts/install-snapshot.sh"
           )
+          # MCP server binary (only if it built).
+          [ -f mcduck-mcp-macos ] && ASSETS+=("mcduck-mcp-macos")
 
           # Pinned, immutable snapshot release (tag already exists for a tag push;
           # --target creates it for a workflow_dispatch run).
