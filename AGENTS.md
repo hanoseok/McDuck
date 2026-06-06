@@ -255,6 +255,17 @@ shasum -a 256 -c McDuck-<버전>-macos.zip.sha256
 - 버튼은 `mcDuckGlass`/`mcDuckGlassButton`으로 Liquid Glass를 적용합니다. 차트 호버 툴팁은 차트 annotation이 아니라 **최상위 `.overlay`** 로 그려 범례 위에 불투명하게 표시합니다.
 - ccusage 출력 스키마는 버전에 따라 다릅니다(예: 날짜 필드가 `date` 또는 `period`, per-model이 `breakdown` 딕셔너리 또는 `modelBreakdowns` 배열). 파서는 누락 필드에 관대해야 하며, 디코딩 실패 시 원본 출력 일부를 담은 명확한 에러를 던집니다.
 
+## MCP 서버 (`mcduck-mcp`)
+
+McDuck은 사용량 데이터를 **MCP(stdio) 서버**로도 제공합니다. ccusage 파싱은 `McDuckCore`를 재사용하므로 로직 중복이 없습니다.
+
+- `Sources/McDuckMCP` — 라이브러리. JSON-RPC 2.0 타입, `MCPRequestHandler`(initialize/tools/list/tools/call), 툴 정의·집계(`MCPTools`). I/O가 없어 단위 테스트 가능. 데이터원은 `UsageProviding` 프로토콜로 추상화(테스트는 fake 주입).
+- `Sources/mcduck-mcp` — 실행파일. 줄단위 JSON-RPC stdio 루프, 실제 provider는 `CcusageClient` 래핑.
+- `Tests/McDuckMCPTests` — 핸들러·와이어 포맷 리그레션 테스트.
+- 노출 툴(1차): `usage_summary`, `daily_usage`, `model_breakdown`(인자: 선택적 `start`/`end`, `yyyy-MM-dd`).
+- SwiftUI에 의존하지 않아 macOS·Linux 모두 컴파일됩니다(앱 타깃과 달리).
+- 플러그인(`plugin/`)이 이 바이너리를 MCP 서버로 선언합니다(별도 문서).
+
 ## 테스트 규칙 (TDD + 리그레션)
 
 - **TDD가 기본입니다.** 모든 코드 변경은 **실패하는 테스트를 먼저 작성**하고, 그 테스트를 통과시키는 최소 구현을 넣은 뒤 리팩터링합니다(red → green → refactor).

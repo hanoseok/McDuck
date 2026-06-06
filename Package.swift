@@ -8,13 +8,22 @@ let package = Package(
     ],
     products: [
         .library(name: "McDuckCore", targets: ["McDuckCore"]),
-        .executable(name: "McDuck", targets: ["McDuck"])
+        .executable(name: "McDuck", targets: ["McDuck"]),
+        .executable(name: "mcduck-mcp", targets: ["mcduck-mcp"])
     ],
     targets: [
         .target(name: "McDuckCore"),
+        .target(
+            name: "McDuckMCP",
+            dependencies: ["McDuckCore"]
+        ),
         .executableTarget(
             name: "McDuck",
             dependencies: ["McDuckCore"]
+        ),
+        .executableTarget(
+            name: "mcduck-mcp",
+            dependencies: ["McDuckCore", "McDuckMCP"]
         ),
         .testTarget(
             name: "McDuckCoreTests",
@@ -23,6 +32,10 @@ let package = Package(
         .testTarget(
             name: "McDuckTests",
             dependencies: ["McDuck", "McDuckCore"]
+        ),
+        .testTarget(
+            name: "McDuckMCPTests",
+            dependencies: ["McDuckMCP", "McDuckCore"]
         )
     ]
 )
