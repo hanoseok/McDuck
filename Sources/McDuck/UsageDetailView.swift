@@ -110,6 +110,11 @@ enum Formatters {
         value.formatted(.currency(code: "USD").precision(.fractionLength(2)))
     }
 
+    /// Currency without decimals, e.g. "$3" — used in the compact menu-bar label.
+    static func currencyWhole(_ value: Double) -> String {
+        value.formatted(.currency(code: "USD").precision(.fractionLength(0)))
+    }
+
     /// Human-friendly active duration; returns "-" for non-positive values.
     static func duration(_ seconds: TimeInterval) -> String {
         guard seconds > 0 else {

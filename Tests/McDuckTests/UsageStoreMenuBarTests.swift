@@ -47,7 +47,8 @@ struct UsageStoreMenuBarTests {
     func today() {
         let usage = loadedStore().menuBarUsage(for: .today)
         #expect(usage?.tokens == Formatters.compact(100))
-        #expect(usage?.cost == Formatters.currency(1.0))
+        // Cost is whole-dollar (no decimals) in the menu bar.
+        #expect(usage?.cost == Formatters.currencyWhole(1.0))
     }
 
     @Test("week sums the last 7 days")
@@ -65,9 +66,9 @@ struct UsageStoreMenuBarTests {
     @Test("total sums all history")
     func total() {
         let usage = loadedStore().menuBarUsage(for: .total)
-        // 100+200+300+999 tokens, $1+$2+$3+$9 cost.
+        // 100+200+300+999 tokens, $1+$2+$3+$9 cost (whole-dollar).
         #expect(usage?.tokens == Formatters.compact(1599))
-        #expect(usage?.cost == Formatters.currency(15.0))
+        #expect(usage?.cost == Formatters.currencyWhole(15.0))
     }
 
     @Test("no data shows nothing even for total")
