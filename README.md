@@ -101,6 +101,15 @@ The plugin launcher (`plugin/bin/mcduck-mcp`) uses a prebuilt binary if present
 it from the bundled Swift package (`swift build -c release --product mcduck-mcp`),
 so a Swift toolchain is needed until a prebuilt binary ships with releases.
 
+If you installed the **McDuck app**, the marketplace and a prebuilt server
+binary are bundled inside it, so you can register and install entirely locally
+(no network, no toolchain):
+
+```bash
+/plugin marketplace add /Applications/McDuck.app/Contents/Resources/ClaudePlugin
+/plugin install mcduck@mcduck
+```
+
 ## Notes
 
 - `LSUIElement=true` is set in `Resources/Info.plist`, so the packaged app behaves as a menu bar utility without a Dock icon.
