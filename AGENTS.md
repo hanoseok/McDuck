@@ -244,7 +244,7 @@ shasum -a 256 -c McDuck-<버전>-macos.zip.sha256
 - **`Bundle.module`을 쓰지 않습니다.** SwiftPM의 리소스 번들 접근자는 수동 조립된 `.app`에서 번들을 못 찾아 **실행 즉시 `Fatal error`로 크래시**합니다(`McDuck_McDuck.bundle`를 `.app` 최상위에서 찾음). 이미지는 `Bundle.main`(=`Contents/Resources`) 또는 컴파일된 `Assets.car`에서 로드합니다.
 - **`swift build`는 `.xcassets`를 컴파일하지 않습니다.** 에셋 카탈로그는 `build-app.sh`에서 `actool`로 `Assets.car`를 만들어 메인 번들에 넣습니다.
 - **메뉴바 커스텀 아이콘은 "이름 있는 에셋 이미지"** 를 씁니다(`MenuBarExtra(image:)` / `Image("name")`). `Image(nsImage:)`는 메뉴바 라벨에서 표시되지 않을 수 있습니다.
-- **메뉴바 라벨은 한 줄 높이(~22pt)** 입니다. `MenuBarExtra` 라벨에 `VStack`으로 2줄을 넣으면 아래 줄이 클리핑되어 윗줄만 보입니다. 여러 값은 한 줄(`A · B`)로 묶어 표시합니다(예: `MenuBarLabel`의 토큰·비용).
+- **메뉴바 라벨은 한 줄 높이(~22pt)** 입니다. `MenuBarExtra` 라벨에 `VStack`으로 **라이브 텍스트** 2줄을 넣으면 아래 줄이 클리핑됩니다. 2줄을 보이려면 `ImageRenderer`로 **템플릿 `NSImage`로 렌더링**해 `Image(nsImage:)`로 넣습니다(이미지는 바 높이에 맞춰 축소되어 두 줄 모두 표시). `MenuBarLabel`이 아이콘+토큰/비용을 이렇게 렌더링합니다. (참고: 실제 표시는 macOS에서 육안 확인 필요 — 안 보이면 커스텀 `NSStatusItem`으로 전환.)
 
 ## 구현 규칙
 

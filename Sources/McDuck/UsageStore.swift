@@ -139,7 +139,7 @@ final class UsageStore {
         }
         let tokens = days.reduce(0) { $0 + $1.totalTokens }
         let cost = days.reduce(0.0) { $0 + $1.costUSD }
-        return (Formatters.compact(tokens), Formatters.currency(cost))
+        return (Formatters.compact(tokens), Formatters.currencyWhole(cost))
     }
 
     /// Usage days inside the menu-bar period (relative to today); nil for
