@@ -127,4 +127,24 @@ struct SettingsStoreTests {
         await settings.installPlugin()
         #expect(settings.pluginInstallPhase == .failed("nope"))
     }
+
+    @Test("installed state is detected at init")
+    func detectsInstalled() {
+        #expect(store(installer: FakePluginInstaller(installed: true)).isPluginInstalled)
+        #expect(store(installer: FakePluginInstaller(installed: false)).isPluginInstalled == false)
+    }
+
+    @Test("uninstalling reports done")
+    func uninstallReportsDone() async {
+        let settings = store(installer: FakePluginInstaller(installed: true, uninstallOutcome: .removedViaCLI))
+        await settings.uninstallPlugin()
+        if case .done = settings.pluginInstallPhase {} else { Issue.record("expected done, got \(settings.pluginInstallPhase)") }
+    }
+
+    @Test("a failed uninstall surfaces the failure")
+    func uninstallFailed() async {
+        let settings = store(installer: FakePluginInstaller(installed: true, uninstallOutcome: .failed(message: "boom")))
+        await settings.uninstallPlugin()
+        #expect(settings.pluginInstallPhase == .failed("boom"))
+    }
 }
