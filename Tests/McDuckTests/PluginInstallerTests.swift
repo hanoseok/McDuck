@@ -10,12 +10,23 @@ import McDuckCore
 private struct ScriptedRunner: CommandRunner {
     var addExit: Int32 = 0
     var installExit: Int32 = 0
+    var uninstallExit: Int32 = 0
+    var removeExit: Int32 = 0
 
     func run(_ request: CommandRequest) async -> CommandResult {
-        if request.arguments.contains("add") {
+        let args = request.arguments
+        // "uninstall"/"remove" are checked first; they are distinct elements
+        // from "install"/"add".
+        if args.contains("uninstall") {
+            return CommandResult(exitCode: uninstallExit, stdout: "", stderr: uninstallExit == 0 ? "" : "uninstall failed")
+        }
+        if args.contains("remove") {
+            return CommandResult(exitCode: removeExit, stdout: "", stderr: removeExit == 0 ? "" : "remove failed")
+        }
+        if args.contains("add") {
             return CommandResult(exitCode: addExit, stdout: "", stderr: addExit == 0 ? "" : "add failed")
         }
-        if request.arguments.contains("install") {
+        if args.contains("install") {
             return CommandResult(exitCode: installExit, stdout: "", stderr: installExit == 0 ? "" : "install failed")
         }
         return CommandResult(exitCode: 127, stdout: "", stderr: "unexpected")
