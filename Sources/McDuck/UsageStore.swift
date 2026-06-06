@@ -131,19 +131,46 @@ final class UsageStore {
 
     // MARK: - Menu bar label
 
-    /// Today's usage day (local calendar), if loaded.
-    private var todayDay: UsageDay? {
-        dashboard?.report.days.first { $0.dateString == today }
+    /// Tokens and cost for the menu-bar label over the chosen period, or nil
+    /// when there is nothing to show (period `.none`, or no usage yet).
+    func menuBarUsage(for period: MenuBarPeriod) -> (tokens: String, cost: String)? {
+        guard let days = menuBarDays(for: period), !days.isEmpty else {
+            return nil
+        }
+        let tokens = days.reduce(0) { $0 + $1.totalTokens }
+        let cost = days.reduce(0.0) { $0 + $1.costUSD }
+        return (Formatters.compact(tokens), Formatters.currency(cost))
     }
 
-    /// Today's cost for the menu-bar label; nil until data loads.
-    var menuBarCostText: String? {
-        todayDay.map { Formatters.currency($0.costUSD) }
-    }
+    /// Usage days inside the menu-bar period (relative to today); nil for
+    /// `.none` or when no report is loaded.
+    private func menuBarDays(for period: MenuBarPeriod) -> [UsageDay]? {
+        guard period != .none, let report = dashboard?.report else {
+            return nil
+        }
+        let calendar = gregorian
+        let todayStart = calendar.startOfDay(for: Date())
 
-    /// Today's total tokens for the menu-bar label; nil until data loads.
-    var menuBarTokensText: String? {
-        todayDay.map { Formatters.compact($0.totalTokens) }
+        let start: Date?
+        switch period {
+        case .none:
+            return nil
+        case .today:
+            start = todayStart
+        case .week:
+            start = calendar.date(byAdding: .day, value: -6, to: todayStart)
+        case .month:
+            let back = calendar.date(byAdding: .month, value: -1, to: todayStart)
+            start = back.flatMap { calendar.date(byAdding: .day, value: 1, to: $0) }
+        case .total:
+            start = nil
+        }
+
+        return report.days.filter { day in
+            let date = calendar.startOfDay(for: day.date)
+            if let start, date < start { return false }
+            return date <= todayStart
+        }
     }
 
     /// Years offered in the selector, newest first, from the current year back to `earliestYear`.
