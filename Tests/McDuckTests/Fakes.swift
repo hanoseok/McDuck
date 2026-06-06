@@ -33,6 +33,13 @@ enum FakeError: Error {
     case registrationFailed
 }
 
+/// Returns a fixed plugin-install outcome so `SettingsStore` phase transitions
+/// can be tested without touching the CLI or settings.json.
+struct FakePluginInstaller: PluginInstalling {
+    var outcome: PluginInstallOutcome
+    func install() async -> PluginInstallOutcome { outcome }
+}
+
 /// A throwaway, isolated UserDefaults so settings tests never read or write the
 /// real app domain.
 func makeEphemeralDefaults() -> UserDefaults {

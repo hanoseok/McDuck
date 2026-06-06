@@ -95,4 +95,31 @@ struct SettingsStoreTests {
         settings.openLoginItemsSettings()
         #expect(fake.openSettingsCount == 1)
     }
+
+    // MARK: - Plugin install
+
+    private func store(installer: FakePluginInstaller) -> SettingsStore {
+        SettingsStore(loginItem: FakeLoginItem(), defaults: makeEphemeralDefaults(), pluginInstaller: installer)
+    }
+
+    @Test("installing via the settings fallback reports done")
+    func installWroteSettings() async {
+        let settings = store(installer: FakePluginInstaller(outcome: .wroteSettings(path: "/x/settings.json")))
+        await settings.installPlugin()
+        if case .done = settings.pluginInstallPhase {} else { Issue.record("expected done, got \(settings.pluginInstallPhase)") }
+    }
+
+    @Test("installing via the CLI reports done")
+    func installViaCLI() async {
+        let settings = store(installer: FakePluginInstaller(outcome: .installedViaCLI))
+        await settings.installPlugin()
+        if case .done = settings.pluginInstallPhase {} else { Issue.record("expected done, got \(settings.pluginInstallPhase)") }
+    }
+
+    @Test("a failed install surfaces the failure")
+    func installFailed() async {
+        let settings = store(installer: FakePluginInstaller(outcome: .failed(message: "nope")))
+        await settings.installPlugin()
+        #expect(settings.pluginInstallPhase == .failed("nope"))
+    }
 }

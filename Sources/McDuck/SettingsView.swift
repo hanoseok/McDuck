@@ -72,6 +72,46 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
             }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Claude Code plugin")
+                    .font(.subheadline)
+                Text("Register McDuck's MCP server + usage skill in Claude Code.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    Button {
+                        Task { await settings.installPlugin() }
+                    } label: {
+                        Label("Add to Claude Code", systemImage: "puzzlepiece.extension")
+                    }
+                    .mcDuckGlassButton()
+                    .controlSize(.small)
+                    .disabled(settings.isInstallingPlugin)
+
+                    if settings.isInstallingPlugin {
+                        ProgressView().controlSize(.small)
+                    }
+                }
+
+                switch settings.pluginInstallPhase {
+                case .done(let message):
+                    Text(message)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                case .failed(let message):
+                    Text(message)
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                case .idle, .installing:
+                    EmptyView()
+                }
+            }
         }
         .padding(14)
         .frame(width: 260, alignment: .leading)
