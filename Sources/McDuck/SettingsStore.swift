@@ -50,8 +50,11 @@ final class SettingsStore {
     /// through `setMenuBarPeriod(_:)` so the choice is written to UserDefaults.
     private(set) var menuBarPeriod: MenuBarPeriod
 
-    /// Progress of the "Add to Claude Code" action.
+    /// Progress of the "Add to Claude Code" / "Remove" action.
     private(set) var pluginInstallPhase: PluginInstallPhase = .idle
+
+    /// Whether the plugin currently looks registered/enabled in Claude Code.
+    private(set) var isPluginInstalled = false
 
     init(
         loginItem: any LoginItemControlling = SMAppServiceLoginItem(),
@@ -64,6 +67,7 @@ final class SettingsStore {
         self.loginItemState = loginItem.currentState()
         self.menuBarPeriod = defaults.string(forKey: Self.menuBarPeriodKey)
             .flatMap(MenuBarPeriod.init(rawValue:)) ?? .today
+        self.isPluginInstalled = pluginInstaller.isInstalled()
     }
 
     /// Builds the real installer: the `claude` CLI plus a settings.json fallback,
@@ -132,6 +136,12 @@ final class SettingsStore {
         pluginInstallPhase == .installing
     }
 
+    /// Re-reads whether the plugin is registered/enabled. Call when the settings
+    /// UI appears so a change made elsewhere is reflected.
+    func refreshPluginInstalled() {
+        isPluginInstalled = pluginInstaller.isInstalled()
+    }
+
     /// Registers + enables the bundled McDuck plugin in Claude Code (CLI first,
     /// settings.json fallback).
     func installPlugin() async {
@@ -146,5 +156,23 @@ final class SettingsStore {
         case .failed(let message):
             pluginInstallPhase = .failed(message)
         }
+        refreshPluginInstalled()
+    }
+
+    /// Removes the McDuck plugin from Claude Code (CLI first, settings.json
+    /// fallback).
+    func uninstallPlugin() async {
+        guard pluginInstallPhase != .installing else { return }
+        pluginInstallPhase = .installing
+
+        switch await pluginInstaller.uninstall() {
+        case .removedViaCLI:
+            pluginInstallPhase = .done("Removed. Restart Claude Code (or run /reload-plugins).")
+        case .wroteSettings:
+            pluginInstallPhase = .done("Removed from ~/.claude/settings.json. Restart Claude Code (or run /reload-plugins).")
+        case .failed(let message):
+            pluginInstallPhase = .failed(message)
+        }
+        refreshPluginInstalled()
     }
 }

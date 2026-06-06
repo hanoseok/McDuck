@@ -83,14 +83,25 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 8) {
-                    Button {
-                        Task { await settings.installPlugin() }
-                    } label: {
-                        Label("Add to Claude Code", systemImage: "puzzlepiece.extension")
+                    if settings.isPluginInstalled {
+                        Button {
+                            Task { await settings.uninstallPlugin() }
+                        } label: {
+                            Label("Remove from Claude Code", systemImage: "trash")
+                        }
+                        .mcDuckGlassButton()
+                        .controlSize(.small)
+                        .disabled(settings.isInstallingPlugin)
+                    } else {
+                        Button {
+                            Task { await settings.installPlugin() }
+                        } label: {
+                            Label("Add to Claude Code", systemImage: "puzzlepiece.extension")
+                        }
+                        .mcDuckGlassButton()
+                        .controlSize(.small)
+                        .disabled(settings.isInstallingPlugin)
                     }
-                    .mcDuckGlassButton()
-                    .controlSize(.small)
-                    .disabled(settings.isInstallingPlugin)
 
                     if settings.isInstallingPlugin {
                         ProgressView().controlSize(.small)
@@ -115,6 +126,9 @@ struct SettingsView: View {
         }
         .padding(14)
         .frame(width: 260, alignment: .leading)
-        .onAppear { settings.refreshLoginItemState() }
+        .onAppear {
+            settings.refreshLoginItemState()
+            settings.refreshPluginInstalled()
+        }
     }
 }

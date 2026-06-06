@@ -109,6 +109,78 @@ struct ClaudePluginSettingsTests {
     func argumentVectors() {
         #expect(ClaudePluginSettings.marketplaceAddArguments(path: "/p") == ["plugin", "marketplace", "add", "/p"])
         #expect(ClaudePluginSettings.installArguments() == ["plugin", "install", "mcduck@mcduck"])
+        #expect(ClaudePluginSettings.uninstallArguments() == ["plugin", "uninstall", "mcduck@mcduck"])
+        #expect(ClaudePluginSettings.marketplaceRemoveArguments() == ["plugin", "marketplace", "remove", "mcduck"])
+    }
+
+    // MARK: - Installed detection
+
+    @Test("isInstalled is false for empty or unrelated settings")
+    func notInstalled() {
+        #expect(ClaudePluginSettings.isInstalled(in: nil) == false)
+        #expect(ClaudePluginSettings.isInstalled(in: #"{"model":"opus"}"#.data(using: .utf8)) == false)
+    }
+
+    @Test("isInstalled is true when the plugin is enabled or the marketplace is known")
+    func installedDetected() {
+        #expect(ClaudePluginSettings.isInstalled(in: #"{"enabledPlugins":{"mcduck@mcduck":true}}"#.data(using: .utf8)))
+        #expect(ClaudePluginSettings.isInstalled(in: #"{"extraKnownMarketplaces":{"mcduck":{}}}"#.data(using: .utf8)))
+    }
+
+    // MARK: - Removal
+
+    @Test("removed strips the marketplace and plugin entries, keeping others")
+    func removedStripsEntries() throws {
+        let installed = try ClaudePluginSettings.merged(intoExisting: #"{"model":"opus"}"#.data(using: .utf8), marketplacePath: "/p")
+        let cleaned = try parse(ClaudePluginSettings.removed(fromExisting: installed))
+
+        #expect(cleaned["model"] as? String == "opus")
+        #expect((cleaned["enabledPlugins"] as? [String: Any])?["mcduck@mcduck"] == nil)
+        #expect((cleaned["extraKnownMarketplaces"] as? [String: Any])?["mcduck"] == nil)
+        #expect(ClaudePluginSettings.isInstalled(in: try ClaudePluginSettings.removed(fromExisting: installed)) == false)
+    }
+
+    @Test("removed is a no-op when nothing is installed")
+    func removedIdempotent() throws {
+        let cleaned = try parse(ClaudePluginSettings.removed(fromExisting: #"{"model":"opus"}"#.data(using: .utf8)))
+        #expect(cleaned["model"] as? String == "opus")
+    }
+}
+
+@Suite("plugin uninstaller")
+struct PluginUninstallerTests {
+    @Test("installer reports installed state from settings.json")
+    func isInstalledReadsSettings() {
+        let io = InMemorySettingsIO(stored: #"{"enabledPlugins":{"mcduck@mcduck":true}}"#.data(using: .utf8))
+        #expect(installer(io: io).isInstalled() == true)
+        #expect(installer(io: InMemorySettingsIO()).isInstalled() == false)
+    }
+
+    @Test("CLI uninstall removes via CLI without touching settings")
+    func cliUninstall() async {
+        let io = InMemorySettingsIO(stored: #"{"enabledPlugins":{"mcduck@mcduck":true}}"#.data(using: .utf8))
+        let result = await installer(claude: "/usr/bin/claude", runner: ScriptedRunner(), io: io).uninstall()
+        #expect(result == .removedViaCLI)
+        #expect(io.wroteCount == 0)
+    }
+
+    @Test("with no claude, uninstall rewrites settings without the entries")
+    func settingsUninstall() async throws {
+        let io = InMemorySettingsIO(stored: #"{"model":"opus","enabledPlugins":{"mcduck@mcduck":true}}"#.data(using: .utf8))
+        let result = await installer(claude: nil, io: io).uninstall()
+        if case .wroteSettings = result {} else { Issue.record("expected wroteSettings, got \(result)") }
+
+        let obj = try parse(io.stored)
+        #expect(obj["model"] as? String == "opus")
+        #expect((obj["enabledPlugins"] as? [String: Any])?["mcduck@mcduck"] == nil)
+    }
+
+    @Test("a settings write error surfaces as failed")
+    func uninstallWriteErrorFails() async {
+        let io = InMemorySettingsIO(stored: #"{"enabledPlugins":{"mcduck@mcduck":true}}"#.data(using: .utf8))
+        io.writeError = WriteFailure.denied
+        let result = await installer(claude: nil, io: io).uninstall()
+        if case .failed = result {} else { Issue.record("expected failed, got \(result)") }
     }
 }
 

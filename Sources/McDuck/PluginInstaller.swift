@@ -11,9 +11,19 @@ enum PluginInstallOutcome: Equatable, Sendable {
     case failed(message: String)
 }
 
+/// Result of trying to remove the McDuck plugin from Claude Code.
+enum PluginUninstallOutcome: Equatable, Sendable {
+    case removedViaCLI
+    case wroteSettings(path: String)
+    case failed(message: String)
+}
+
 /// Abstraction so the settings UI can be driven by a fake in tests.
 protocol PluginInstalling: Sendable {
     func install() async -> PluginInstallOutcome
+    /// Whether the plugin appears registered/enabled in the user's settings.
+    func isInstalled() -> Bool
+    func uninstall() async -> PluginUninstallOutcome
 }
 
 /// The marketplace/plugin identifiers and the exact settings.json shapes Claude
@@ -63,6 +73,58 @@ enum ClaudePluginSettings {
     /// `claude plugin install mcduck@mcduck` arguments.
     static func installArguments() -> [String] {
         ["plugin", "install", pluginRef]
+    }
+
+    /// `claude plugin uninstall mcduck@mcduck` arguments.
+    static func uninstallArguments() -> [String] {
+        ["plugin", "uninstall", pluginRef]
+    }
+
+    /// `claude plugin marketplace remove mcduck` arguments.
+    static func marketplaceRemoveArguments() -> [String] {
+        ["plugin", "marketplace", "remove", marketplaceName]
+    }
+
+    /// Whether settings.json shows the plugin registered (marketplace) or
+    /// enabled.
+    static func isInstalled(in data: Data?) -> Bool {
+        guard let data, !data.isEmpty,
+              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+            return false
+        }
+        if let enabled = root["enabledPlugins"] as? [String: Any], enabled[pluginRef] != nil {
+            return true
+        }
+        if let markets = root["extraKnownMarketplaces"] as? [String: Any], markets[marketplaceName] != nil {
+            return true
+        }
+        return false
+    }
+
+    /// Removes the marketplace registration + plugin enablement from existing
+    /// settings.json bytes, preserving every other key. Idempotent.
+    static func removed(fromExisting data: Data?) throws -> Data {
+        var root: [String: Any] = [:]
+        if let data, !data.isEmpty {
+            guard let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+                throw PluginInstallError.malformedSettings
+            }
+            root = object
+        }
+
+        if var marketplaces = root["extraKnownMarketplaces"] as? [String: Any] {
+            marketplaces[marketplaceName] = nil
+            root["extraKnownMarketplaces"] = marketplaces
+        }
+        if var enabled = root["enabledPlugins"] as? [String: Any] {
+            enabled[pluginRef] = nil
+            root["enabledPlugins"] = enabled
+        }
+
+        return try JSONSerialization.data(
+            withJSONObject: root,
+            options: [.prettyPrinted, .sortedKeys]
+        )
     }
 }
 
@@ -153,6 +215,40 @@ struct PluginInstaller: PluginInstalling {
                 intoExisting: fileIO.read(settingsURL),
                 marketplacePath: marketplacePath
             )
+            try fileIO.write(merged, to: settingsURL)
+            return .wroteSettings(path: settingsURL.path)
+        } catch {
+            return .failed(message: error.localizedDescription)
+        }
+    }
+
+    func isInstalled() -> Bool {
+        ClaudePluginSettings.isInstalled(in: fileIO.read(settingsURL))
+    }
+
+    func uninstall() async -> PluginUninstallOutcome {
+        if let claudeExecutable {
+            let environment = ["PATH": pathValue(forClaude: claudeExecutable)]
+            let remove = await runner.run(CommandRequest(
+                executable: claudeExecutable,
+                arguments: ClaudePluginSettings.uninstallArguments(),
+                environment: environment,
+                timeout: 60
+            ))
+            if remove.exitCode == 0 {
+                // Best-effort marketplace removal; ignore its result.
+                _ = await runner.run(CommandRequest(
+                    executable: claudeExecutable,
+                    arguments: ClaudePluginSettings.marketplaceRemoveArguments(),
+                    environment: environment,
+                    timeout: 60
+                ))
+                return .removedViaCLI
+            }
+        }
+
+        do {
+            let merged = try ClaudePluginSettings.removed(fromExisting: fileIO.read(settingsURL))
             try fileIO.write(merged, to: settingsURL)
             return .wroteSettings(path: settingsURL.path)
         } catch {
