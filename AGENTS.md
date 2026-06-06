@@ -255,6 +255,16 @@ shasum -a 256 -c McDuck-<버전>-macos.zip.sha256
 - 버튼은 `mcDuckGlass`/`mcDuckGlassButton`으로 Liquid Glass를 적용합니다. 차트 호버 툴팁은 차트 annotation이 아니라 **최상위 `.overlay`** 로 그려 범례 위에 불투명하게 표시합니다.
 - ccusage 출력 스키마는 버전에 따라 다릅니다(예: 날짜 필드가 `date` 또는 `period`, per-model이 `breakdown` 딕셔너리 또는 `modelBreakdowns` 배열). 파서는 누락 필드에 관대해야 하며, 디코딩 실패 시 원본 출력 일부를 담은 명확한 에러를 던집니다.
 
+## 테스트 규칙 (TDD + 리그레션)
+
+- **TDD가 기본입니다.** 모든 코드 변경은 **실패하는 테스트를 먼저 작성**하고, 그 테스트를 통과시키는 최소 구현을 넣은 뒤 리팩터링합니다(red → green → refactor).
+- **리그레션 스위트를 유지합니다.** 버그를 고치거나 기능을 추가하면 회귀를 막는 테스트를 스위트에 남깁니다. 테스트는 절대 삭제로 "통과"시키지 않습니다.
+- **테스트 타깃 배치:**
+  - 플랫폼 무관 코어 로직(JSON 파싱, 명령 실행, 상태 판정) → `Tests/McDuckCoreTests` (`McDuckCore`).
+  - 앱 로직(설정 저장소, 메뉴바 텍스트, 로그인 항목 상태 등) → `Tests/McDuckTests` (`@testable import McDuck`). 시스템 연동은 프로토콜(예: `LoginItemControlling`)로 추상화하고 fake를 주입해 테스트합니다.
+- **테스트 용이성을 위해 설계합니다.** 시스템/네트워크 의존은 프로토콜 경계 뒤로 숨기고, 순수 로직은 주입 가능한 입력(`UserDefaults`, fake 러너, fake 로케이터)으로 분리합니다. SwiftUI 뷰 자체보다 그 뷰가 읽는 관찰 가능한 상태/계산 프로퍼티를 테스트합니다.
+- **검증:** `swift test`는 macOS에서 실행합니다(Linux 클라우드 세션은 앱 타깃을 빌드할 수 없어, 앱 타깃 테스트는 PR의 macOS CI 매트릭스로 검증합니다).
+
 ## Git 규칙
 
 - **모든 신규 개발은 `develop`에서 분기**해 시작합니다(작업 브랜치를 항상 최신 `develop` HEAD 기준으로 만든다).
