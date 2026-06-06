@@ -1,0 +1,11 @@
+{
+  "name": "mcduck",
+  "owner": { "name": "hanoseok" },
+  "plugins": [
+    {
+      "name": "mcduck",
+      "source": "./plugin",
+      "description": "Claude/LLM token usage and cost from ccusage (MCP server + usage-report skill)."
+    }
+  ]
+}

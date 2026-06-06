@@ -264,7 +264,18 @@ McDuck은 사용량 데이터를 **MCP(stdio) 서버**로도 제공합니다. cc
 - `Tests/McDuckMCPTests` — 핸들러·와이어 포맷 리그레션 테스트.
 - 노출 툴(1차): `usage_summary`, `daily_usage`, `model_breakdown`(인자: 선택적 `start`/`end`, `yyyy-MM-dd`).
 - SwiftUI에 의존하지 않아 macOS·Linux 모두 컴파일됩니다(앱 타깃과 달리).
-- 플러그인(`plugin/`)이 이 바이너리를 MCP 서버로 선언합니다(별도 문서).
+- 플러그인(`plugin/`)이 이 바이너리를 MCP 서버로 선언합니다(아래 참고).
+
+## Claude Code 플러그인 (`plugin/`)
+
+MCP 서버와 스킬을 하나의 Claude Code 플러그인으로 묶어 배포합니다.
+
+- `plugin/.claude-plugin/plugin.json` — 플러그인 매니페스트. `mcpServers.mcduck.command = ${CLAUDE_PLUGIN_ROOT}/bin/mcduck-mcp`.
+- `plugin/skills/usage-report/SKILL.md` — 사용량 리포트 스킬(MCP 툴 사용 안내).
+- `plugin/bin/mcduck-mcp` — 런처 스크립트. 바이너리 탐색 순서: `MCDUCK_MCP_BIN` → `bin/mcduck-mcp-bin`(릴리스 첨부) → `.build/release/mcduck-mcp` → `swift build`로 소스 빌드. **빌드/진단 출력은 stderr로만** 보내 JSON-RPC stdout을 오염시키지 않습니다.
+- `.claude-plugin/marketplace.json`(레포 루트) — 마켓플레이스. 플러그인 소스 `./plugin`.
+- 설치: `/plugin marketplace add hanoseok/McDuck` → `/plugin install mcduck@mcduck`.
+- 런처가 소스 빌드로 폴백하려면 Swift 툴체인이 필요합니다. 릴리스가 `mcduck-mcp` 바이너리를 첨부하면(`bin/mcduck-mcp-bin`) 빌드 없이 동작합니다(별도 PR).
 
 ## 테스트 규칙 (TDD + 리그레션)
 
