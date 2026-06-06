@@ -19,6 +19,10 @@ let package = Package(
         .testTarget(
             name: "McDuckCoreTests",
             dependencies: ["McDuckCore"]
+        ),
+        .testTarget(
+            name: "McDuckTests",
+            dependencies: ["McDuck", "McDuckCore"]
         )
     ]
 )
