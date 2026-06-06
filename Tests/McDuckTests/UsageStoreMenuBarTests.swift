@@ -32,7 +32,7 @@ struct UsageStoreMenuBarTests {
             day(offset: -10, tokens: 300, cost: 3.0),
             day(offset: -40, tokens: 999, cost: 9.0)
         ]
-        let summary = UsageSummary(inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 1599, totalCostUSD: 16.0)
+        let summary = UsageSummary(inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 1599, totalCostUSD: 15.0)
         let store = UsageStore()
         store.phase = .loaded(UsageStore.DashboardData(report: UsageReport(days: days, summary: summary)))
         return store
@@ -65,8 +65,9 @@ struct UsageStoreMenuBarTests {
     @Test("total sums all history")
     func total() {
         let usage = loadedStore().menuBarUsage(for: .total)
+        // 100+200+300+999 tokens, $1+$2+$3+$9 cost.
         #expect(usage?.tokens == Formatters.compact(1599))
-        #expect(usage?.cost == Formatters.currency(16.0))
+        #expect(usage?.cost == Formatters.currency(15.0))
     }
 
     @Test("no data shows nothing even for total")
