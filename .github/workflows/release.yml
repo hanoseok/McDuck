@@ -76,6 +76,16 @@ jobs:
           MCDUCK_BUILD: ${{ github.run_number }}
         run: scripts/build-app.sh
 
+      # The plugin's MCP server binary. Non-fatal: if it fails to build, the
+      # release still publishes and the plugin launcher falls back to building
+      # from source.
+      - name: Build MCP server binary
+        if: steps.gate.outputs.release == 'true'
+        continue-on-error: true
+        run: |
+          swift build -c release --product mcduck-mcp
+          cp .build/release/mcduck-mcp mcduck-mcp-macos
+
       - name: Package app
         if: steps.gate.outputs.release == 'true'
         id: package
@@ -132,3 +142,8 @@ jobs:
             --title "McDuck-${{ steps.version.outputs.short }}" \
             --target "${{ github.sha }}" \
             --generate-notes
+
+          # Attach the plugin's MCP server binary if it built.
+          if [ -f mcduck-mcp-macos ]; then
+            gh release upload "${{ steps.version.outputs.tag }}" mcduck-mcp-macos --clobber
+          fi

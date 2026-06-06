@@ -28,7 +28,30 @@ if [ -x "${REPO_ROOT}/.build/release/mcduck-mcp" ]; then
   exec "${REPO_ROOT}/.build/release/mcduck-mcp" "$@"
 fi
 
-# 4) Build from source if the Swift package and toolchain are available.
+# 4) A cached binary downloaded from a release on a previous run.
+CACHE_DIR="${CLAUDE_PLUGIN_DATA:-${PLUGIN_ROOT}/.cache}"
+CACHED="${CACHE_DIR}/mcduck-mcp"
+if [ -x "${CACHED}" ]; then
+  exec "${CACHED}" "$@"
+fi
+
+# 5) Download a prebuilt binary from GitHub releases and cache it. The published
+# binary is arm64 (Apple Silicon); on Intel we skip straight to building.
+if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ] && command -v curl >/dev/null 2>&1; then
+  mkdir -p "${CACHE_DIR}"
+  for url in \
+    "https://github.com/hanoseok/McDuck/releases/latest/download/mcduck-mcp-macos" \
+    "https://github.com/hanoseok/McDuck/releases/download/snapshot-latest/mcduck-mcp-macos"; do
+    if curl -fsSL "$url" -o "${CACHED}.tmp" 2>/dev/null && [ -s "${CACHED}.tmp" ]; then
+      chmod +x "${CACHED}.tmp"
+      mv "${CACHED}.tmp" "${CACHED}"
+      exec "${CACHED}" "$@"
+    fi
+  done
+  rm -f "${CACHED}.tmp"
+fi
+
+# 6) Build from source if the Swift package and toolchain are available.
 if [ -f "${REPO_ROOT}/Package.swift" ] && command -v swift >/dev/null 2>&1; then
   echo "mcduck-mcp: building from source (first run only)..." >&2
   swift build -c release --package-path "${REPO_ROOT}" --product mcduck-mcp >&2
