@@ -52,6 +52,26 @@ struct SettingsView: View {
                     .foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
             }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Menu bar")
+                    .font(.subheadline)
+                Text("What to show next to the icon.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Picker("Menu bar", selection: Binding(
+                    get: { settings.menuBarDisplay },
+                    set: { settings.setMenuBarDisplay($0) }
+                )) {
+                    ForEach(SettingsStore.MenuBarDisplay.allCases) { option in
+                        Text(option.title).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
         }
         .padding(14)
         .frame(width: 260, alignment: .leading)

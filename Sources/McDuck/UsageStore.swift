@@ -129,6 +129,23 @@ final class UsageStore {
         }
     }
 
+    // MARK: - Menu bar label
+
+    /// Today's usage day (local calendar), if loaded.
+    private var todayDay: UsageDay? {
+        dashboard?.report.days.first { $0.dateString == today }
+    }
+
+    /// Today's cost for the menu-bar label; nil until data loads.
+    var menuBarCostText: String? {
+        todayDay.map { Formatters.currency($0.costUSD) }
+    }
+
+    /// Today's total tokens for the menu-bar label; nil until data loads.
+    var menuBarTokensText: String? {
+        todayDay.map { Formatters.compact($0.totalTokens) }
+    }
+
     /// Years offered in the selector, newest first, from the current year back to `earliestYear`.
     var availableYears: [Int] {
         let current = Calendar(identifier: .gregorian).component(.year, from: Date())
