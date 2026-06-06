@@ -39,6 +39,7 @@
 
 - **MCP 서버(`mcduck-mcp`)**: 사용량 데이터를 stdio MCP 서버로 제공합니다(`usage_summary`/`daily_usage`/`model_breakdown`). `McDuckCore` 파싱을 재사용합니다.
 - **Claude Code 플러그인(`plugin/`)**: MCP 서버 + `usage-report` 스킬을 묶은 플러그인. `/plugin marketplace add hanoseok/McDuck` 후 `/plugin install mcduck@mcduck`로 설치.
+- **앱에 플러그인 동봉**: `McDuck.app`에 마켓플레이스+플러그인+프리빌트 `mcduck-mcp` 바이너리를 넣어, 앱을 설치하면 네트워크·툴체인 없이 로컬 경로로 마켓플레이스를 등록·설치할 수 있습니다.
 - **메뉴바 라벨에 오늘 비용/토큰**: 메뉴바 아이콘 옆에 오늘 비용 또는 토큰 합계를 표시합니다. 헤더 기어 설정에서 아이콘만/비용/토큰을 선택(UserDefaults에 저장)하며 기본값은 비용입니다.
 - **로그인 시 자동 실행**: 헤더 우측 상단 기어 버튼의 설정 패널에서 `SMAppService.mainApp`로 로그인 항목을 토글합니다(승인 필요 시 시스템 설정 안내).
 - **설치 스크립트 버전 표시**: `install.sh`/`install-snapshot.sh`가 다운로드·설치·완료 메시지에 버전을 표시합니다(예: `Installing McDuck v1.0`). latest 설치 시 `releases/latest` 리다이렉트로 실제 버전을 해석합니다.

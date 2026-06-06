@@ -79,6 +79,42 @@ if [[ -d "$XCASSETS" ]] && command -v xcrun >/dev/null 2>&1; then
   echo "Compiled asset catalog"
 fi
 
+# Bundle the Claude Code plugin marketplace (MCP server + usage-report skill)
+# into the app so installing McDuck also lays down a ready-to-add LOCAL
+# marketplace:
+#   /plugin marketplace add /Applications/McDuck.app/Contents/Resources/ClaudePlugin
+#   /plugin install mcduck@mcduck
+# The prebuilt mcduck-mcp binary travels inside the plugin (plugin/bin/
+# mcduck-mcp-bin), so the server runs with no Swift toolchain and no network.
+# Guarded so a bundling hiccup never fails the primary app build.
+PLUGIN_SRC="$ROOT_DIR/plugin"
+MARKET_SRC="$ROOT_DIR/.claude-plugin/marketplace.json"
+if [[ -d "$PLUGIN_SRC" && -f "$MARKET_SRC" ]]; then
+  if swift build -c release --product mcduck-mcp; then
+    PLUGIN_DEST="$RESOURCES_DIR/ClaudePlugin"
+    if (
+      set -e
+      rm -rf "$PLUGIN_DEST"
+      mkdir -p "$PLUGIN_DEST/.claude-plugin"
+      cp "$MARKET_SRC" "$PLUGIN_DEST/.claude-plugin/marketplace.json"
+      cp -R "$PLUGIN_SRC" "$PLUGIN_DEST/plugin"
+      cp "$BIN_DIR/mcduck-mcp" "$PLUGIN_DEST/plugin/bin/mcduck-mcp-bin"
+      chmod +x "$PLUGIN_DEST/plugin/bin/mcduck-mcp" "$PLUGIN_DEST/plugin/bin/mcduck-mcp-bin"
+      # Sign the nested server binary so Gatekeeper allows the plugin to exec it.
+      if command -v codesign >/dev/null 2>&1; then
+        codesign --force --sign - "$PLUGIN_DEST/plugin/bin/mcduck-mcp-bin"
+      fi
+    ); then
+      echo "Bundled Claude plugin marketplace into $PLUGIN_DEST"
+    else
+      echo "warning: plugin marketplace bundling failed; continuing without it" >&2
+      rm -rf "$PLUGIN_DEST"
+    fi
+  else
+    echo "warning: mcduck-mcp build failed; skipping plugin bundle" >&2
+  fi
+fi
+
 # Ad-hoc sign the bundle so it has a valid signature. This turns the
 # "damaged, move to Trash" Gatekeeper block into a normal unidentified-
 # developer prompt that can be bypassed with right-click > Open.
