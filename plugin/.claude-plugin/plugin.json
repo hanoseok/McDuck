@@ -1,0 +1,13 @@
+{
+  "name": "mcduck",
+  "description": "Claude/LLM token usage and cost from ccusage, via McDuck. Adds an MCP server and a usage-report skill.",
+  "version": "0.1.0",
+  "author": { "name": "hanoseok" },
+  "repository": "https://github.com/hanoseok/McDuck",
+  "keywords": ["ccusage", "tokens", "usage", "cost", "claude", "llm"],
+  "mcpServers": {
+    "mcduck": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/mcduck-mcp"
+    }
+  }
+}

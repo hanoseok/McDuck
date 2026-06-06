@@ -82,6 +82,25 @@ bunx ccusage daily --json --breakdown
 
 The app parses the JSON output, builds a 12-week daily heatmap, and shows the selected day's token, cost, cache, and model breakdown.
 
+## MCP Server & Plugin
+
+McDuck also exposes its usage data to AI agents over **MCP**. The `mcduck-mcp`
+binary is a stdio MCP server providing three tools — `usage_summary`,
+`daily_usage`, and `model_breakdown` (each takes optional `start`/`end`
+`yyyy-MM-dd` bounds) — backed by the same `McDuckCore` ccusage parsing.
+
+A Claude Code plugin bundles the MCP server with a `usage-report` skill:
+
+```bash
+/plugin marketplace add hanoseok/McDuck
+/plugin install mcduck@mcduck
+```
+
+The plugin launcher (`plugin/bin/mcduck-mcp`) uses a prebuilt binary if present
+(`MCDUCK_MCP_BIN` or a release-attached `bin/mcduck-mcp-bin`), otherwise builds
+it from the bundled Swift package (`swift build -c release --product mcduck-mcp`),
+so a Swift toolchain is needed until a prebuilt binary ships with releases.
+
 ## Notes
 
 - `LSUIElement=true` is set in `Resources/Info.plist`, so the packaged app behaves as a menu bar utility without a Dock icon.
