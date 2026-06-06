@@ -33,7 +33,7 @@ trap 'rm -rf "$TMP"' EXIT
 echo "Downloading McDuck snapshot $LABEL ..."
 curl -fL --retry 3 -o "$TMP/McDuck.pkg" "$PKG_URL"
 
-echo "Installing McDuck (administrator password required)..."
+echo "Installing McDuck snapshot $LABEL (administrator password required)..."
 sudo installer -pkg "$TMP/McDuck.pkg" -target /
 
 echo "Done. McDuck snapshot $LABEL is installed and launching."
