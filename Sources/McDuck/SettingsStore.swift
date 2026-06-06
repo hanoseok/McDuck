@@ -2,31 +2,32 @@ import Foundation
 import McDuckCore
 import Observation
 
+/// What the menu bar shows: a usage window, or nothing (icon only).
+enum MenuBarPeriod: String, CaseIterable, Identifiable {
+    case none
+    case today
+    case week
+    case month
+    case total
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .none: "None"
+        case .today: "Today"
+        case .week: "Week"
+        case .month: "Month"
+        case .total: "Total"
+        }
+    }
+}
+
 /// Holds user-facing app settings. Currently the login-item toggle; this is the
 /// home for future preferences (refresh interval, budget alerts, currency).
 @MainActor
 @Observable
 final class SettingsStore {
-    /// What the menu-bar item shows next to the icon.
-    enum MenuBarDisplay: String, CaseIterable, Identifiable {
-        case icon
-        case cost
-        case tokens
-        case both
-
-        var id: String { rawValue }
-
-        /// Short label for the segmented picker.
-        var title: String {
-            switch self {
-            case .icon: "Icon"
-            case .cost: "Cost"
-            case .tokens: "Tokens"
-            case .both: "Both"
-            }
-        }
-    }
-
     /// Progress of registering the bundled plugin in Claude Code.
     enum PluginInstallPhase: Equatable {
         case idle
@@ -38,16 +39,16 @@ final class SettingsStore {
     private let loginItem: any LoginItemControlling
     private let defaults: UserDefaults
     private let pluginInstaller: any PluginInstalling
-    private static let menuBarDisplayKey = "menuBarDisplay"
+    private static let menuBarPeriodKey = "menuBarPeriod"
 
     /// Current login-item registration state, synced from the system.
     private(set) var loginItemState: LoginItemState
     /// Last error surfaced while toggling the login item, if any.
     var loginItemError: String?
 
-    /// What to show in the menu bar; persisted across launches. Update through
-    /// `setMenuBarDisplay(_:)` so the choice is written back to UserDefaults.
-    private(set) var menuBarDisplay: MenuBarDisplay
+    /// Which usage window the menu bar shows; persisted across launches. Update
+    /// through `setMenuBarPeriod(_:)` so the choice is written to UserDefaults.
+    private(set) var menuBarPeriod: MenuBarPeriod
 
     /// Progress of the "Add to Claude Code" action.
     private(set) var pluginInstallPhase: PluginInstallPhase = .idle
@@ -61,8 +62,8 @@ final class SettingsStore {
         self.defaults = defaults
         self.pluginInstaller = pluginInstaller
         self.loginItemState = loginItem.currentState()
-        self.menuBarDisplay = defaults.string(forKey: Self.menuBarDisplayKey)
-            .flatMap(MenuBarDisplay.init(rawValue:)) ?? .cost
+        self.menuBarPeriod = defaults.string(forKey: Self.menuBarPeriodKey)
+            .flatMap(MenuBarPeriod.init(rawValue:)) ?? .today
     }
 
     /// Builds the real installer: the `claude` CLI plus a settings.json fallback,
@@ -120,10 +121,10 @@ final class SettingsStore {
         loginItem.openSettings()
     }
 
-    /// Updates the menu-bar display choice and persists it.
-    func setMenuBarDisplay(_ value: MenuBarDisplay) {
-        menuBarDisplay = value
-        defaults.set(value.rawValue, forKey: Self.menuBarDisplayKey)
+    /// Updates the menu-bar period choice and persists it.
+    func setMenuBarPeriod(_ value: MenuBarPeriod) {
+        menuBarPeriod = value
+        defaults.set(value.rawValue, forKey: Self.menuBarPeriodKey)
     }
 
     /// True while the plugin registration is running.

@@ -7,43 +7,38 @@ import Testing
 @Suite("settings store")
 @MainActor
 struct SettingsStoreTests {
-    // MARK: - Menu bar display
+    // MARK: - Menu bar period
 
-    @Test("menu bar display defaults to cost when nothing is stored")
-    func defaultsToCost() {
+    @Test("menu bar period defaults to today when nothing is stored")
+    func defaultsToToday() {
         let settings = SettingsStore(loginItem: FakeLoginItem(), defaults: makeEphemeralDefaults())
-        #expect(settings.menuBarDisplay == .cost)
+        #expect(settings.menuBarPeriod == .today)
     }
 
-    @Test("setMenuBarDisplay updates the value and persists it across instances")
-    func persistsMenuBarDisplay() {
+    @Test("the period options are exactly none/today/week/month/total")
+    func periodOptions() {
+        #expect(MenuBarPeriod.allCases == [.none, .today, .week, .month, .total])
+    }
+
+    @Test("setMenuBarPeriod updates the value and persists it across instances")
+    func persistsMenuBarPeriod() {
         let defaults = makeEphemeralDefaults()
         let settings = SettingsStore(loginItem: FakeLoginItem(), defaults: defaults)
 
-        settings.setMenuBarDisplay(.tokens)
-        #expect(settings.menuBarDisplay == .tokens)
+        settings.setMenuBarPeriod(.week)
+        #expect(settings.menuBarPeriod == .week)
 
         // A fresh store reading the same defaults should restore the choice.
         let reloaded = SettingsStore(loginItem: FakeLoginItem(), defaults: defaults)
-        #expect(reloaded.menuBarDisplay == .tokens)
+        #expect(reloaded.menuBarPeriod == .week)
     }
 
-    @Test("an unrecognized stored value falls back to cost")
+    @Test("an unrecognized stored value falls back to today")
     func unknownStoredValueFallsBack() {
         let defaults = makeEphemeralDefaults()
-        defaults.set("nonsense", forKey: "menuBarDisplay")
+        defaults.set("nonsense", forKey: "menuBarPeriod")
         let settings = SettingsStore(loginItem: FakeLoginItem(), defaults: defaults)
-        #expect(settings.menuBarDisplay == .cost)
-    }
-
-    @Test("the 'both' option (tokens + cost) is offered and persists")
-    func bothOptionPersists() {
-        #expect(SettingsStore.MenuBarDisplay.allCases.contains(.both))
-
-        let defaults = makeEphemeralDefaults()
-        let settings = SettingsStore(loginItem: FakeLoginItem(), defaults: defaults)
-        settings.setMenuBarDisplay(.both)
-        #expect(SettingsStore(loginItem: FakeLoginItem(), defaults: defaults).menuBarDisplay == .both)
+        #expect(settings.menuBarPeriod == .today)
     }
 
     // MARK: - Launch at login

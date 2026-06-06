@@ -58,18 +58,18 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Menu bar")
                     .font(.subheadline)
-                Text("What to show next to the icon.")
+                Text("Usage window shown next to the icon (tokens over cost).")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 Picker("Menu bar", selection: Binding(
-                    get: { settings.menuBarDisplay },
-                    set: { settings.setMenuBarDisplay($0) }
+                    get: { settings.menuBarPeriod },
+                    set: { settings.setMenuBarPeriod($0) }
                 )) {
-                    ForEach(SettingsStore.MenuBarDisplay.allCases) { option in
+                    ForEach(MenuBarPeriod.allCases) { option in
                         Text(option.title).tag(option)
                     }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
                 .labelsHidden()
             }
 

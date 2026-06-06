@@ -1,56 +1,30 @@
 import SwiftUI
 
-/// The menu-bar status item label: the McDuck icon, optionally followed by
-/// today's cost or token total so usage is visible without opening the popover.
-/// Falls back to the icon alone while data is still loading.
+/// The menu-bar status item label: the McDuck icon, optionally followed by the
+/// selected period's tokens (top) and cost (bottom). Falls back to the icon
+/// alone for the `.none` period or until data is available.
 struct MenuBarLabel: View {
     let store: UsageStore
     let settings: SettingsStore
 
     var body: some View {
-        switch settings.menuBarDisplay {
-        case .icon:
+        if settings.menuBarPeriod == .none {
             icon
-        case .cost:
-            labeled(store.menuBarCostText)
-        case .tokens:
-            labeled(store.menuBarTokensText)
-        case .both:
-            both
+        } else if let usage = store.menuBarUsage(for: settings.menuBarPeriod) {
+            HStack(spacing: 3) {
+                icon
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(usage.tokens)
+                    Text(usage.cost)
+                }
+                .font(.system(size: 9))
+            }
+        } else {
+            icon
         }
     }
 
     private var icon: some View {
         Image("MenuBarIcon")
-    }
-
-    @ViewBuilder
-    private func labeled(_ text: String?) -> some View {
-        if let text {
-            HStack(spacing: 3) {
-                icon
-                Text(text)
-            }
-        } else {
-            icon
-        }
-    }
-
-    /// Today's tokens (top) and cost (bottom), stacked to fit the menu-bar
-    /// height. Falls back to the icon alone until data is available.
-    @ViewBuilder
-    private var both: some View {
-        if store.menuBarTokensText == nil, store.menuBarCostText == nil {
-            icon
-        } else {
-            HStack(spacing: 3) {
-                icon
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(store.menuBarTokensText ?? "–")
-                    Text(store.menuBarCostText ?? "–")
-                }
-                .font(.system(size: 9))
-            }
-        }
     }
 }
