@@ -15,6 +15,8 @@ struct MenuBarLabel: View {
             labeled(store.menuBarCostText)
         case .tokens:
             labeled(store.menuBarTokensText)
+        case .both:
+            both
         }
     }
 
@@ -31,6 +33,24 @@ struct MenuBarLabel: View {
             }
         } else {
             icon
+        }
+    }
+
+    /// Today's tokens (top) and cost (bottom), stacked to fit the menu-bar
+    /// height. Falls back to the icon alone until data is available.
+    @ViewBuilder
+    private var both: some View {
+        if store.menuBarTokensText == nil, store.menuBarCostText == nil {
+            icon
+        } else {
+            HStack(spacing: 3) {
+                icon
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(store.menuBarTokensText ?? "–")
+                    Text(store.menuBarCostText ?? "–")
+                }
+                .font(.system(size: 9))
+            }
         }
     }
 }

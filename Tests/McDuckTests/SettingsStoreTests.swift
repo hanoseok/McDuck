@@ -36,6 +36,16 @@ struct SettingsStoreTests {
         #expect(settings.menuBarDisplay == .cost)
     }
 
+    @Test("the 'both' option (tokens + cost) is offered and persists")
+    func bothOptionPersists() {
+        #expect(SettingsStore.MenuBarDisplay.allCases.contains(.both))
+
+        let defaults = makeEphemeralDefaults()
+        let settings = SettingsStore(loginItem: FakeLoginItem(), defaults: defaults)
+        settings.setMenuBarDisplay(.both)
+        #expect(SettingsStore(loginItem: FakeLoginItem(), defaults: defaults).menuBarDisplay == .both)
+    }
+
     // MARK: - Launch at login
 
     @Test("enabling launch at login reflects the enabled state")
