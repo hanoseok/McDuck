@@ -249,11 +249,15 @@ shasum -a 256 -c McDuck-<버전>-macos.zip.sha256
 
 ## Git 규칙
 
+- **모든 신규 개발은 `develop`에서 분기**해 시작합니다(작업 브랜치를 항상 최신 `develop` HEAD 기준으로 만든다).
+- 코드 흐름은 작업 브랜치 → `develop` → `main`(PR 머지)입니다.
 - 기능 작업은 지정된 작업 브랜치에서 진행합니다.
 - 의미 있는 단위로 커밋합니다.
 - push 전에 `git status --short`로 의도하지 않은 파일이 없는지 확인합니다.
 - 생성물(`dist/`), 캐시, 임시 파일은 커밋하지 않습니다.
 - 빌드는 **태그 기반**입니다. 정식은 `main`에 `MAJOR.MINOR` 태그(`1.0`), 스냅샷은 `develop`에 `X.Y.Z-SNAPSHOT` 태그(`1.0.4-SNAPSHOT`)를 찍어 트리거합니다. remote(클라우드) 세션은 태그 ref push가 막혀 있어, 에이전트는 코드 PR 머지까지만 하고 **태그는 사람이 찍습니다**.
+- **`develop` 머지 = 스냅샷 빌드**: 작업이 `develop`에 머지되면 곧바로 스냅샷을 빌드합니다. 에이전트는 develop 머지 PR에서 `.github/cut-snapshot.txt`를 다음 `X.Y.Z-SNAPSHOT`으로 올려 `cut.yml`이 스냅샷 빌드를 띄우게 합니다(태그 직접 push가 가능한 로컬은 `git push origin <태그>`).
+- **정식 릴리스 = `main` 태그**: 정식 릴리스는 `main`에서만 만들 수 있습니다. `main`에 `MAJOR.MINOR` 태그를 찍어야(또는 `.github/cut-release.txt`를 `main`에 머지) `release.yml`이 빌드합니다.
 
 ## 문서 규칙
 
