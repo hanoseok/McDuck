@@ -41,6 +41,20 @@ struct SettingsStoreTests {
         #expect(settings.menuBarPeriod == .today)
     }
 
+    @Test("menu bar metric options are token/cost/both and default to both")
+    func metricOptionsAndDefault() {
+        #expect(MenuBarMetric.allCases == [.token, .cost, .both])
+        #expect(SettingsStore(loginItem: FakeLoginItem(), defaults: makeEphemeralDefaults()).menuBarMetric == .both)
+    }
+
+    @Test("setMenuBarMetric persists across instances")
+    func persistsMenuBarMetric() {
+        let defaults = makeEphemeralDefaults()
+        let settings = SettingsStore(loginItem: FakeLoginItem(), defaults: defaults)
+        settings.setMenuBarMetric(.token)
+        #expect(SettingsStore(loginItem: FakeLoginItem(), defaults: defaults).menuBarMetric == .token)
+    }
+
     // MARK: - Launch at login
 
     @Test("enabling launch at login reflects the enabled state")
