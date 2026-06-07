@@ -38,32 +38,31 @@
 
 ### 1.1 (Stable)
 
-McDuck을 Claude Code 생태계와 연동하고, 메뉴바 사용량 표시·시스템 통합·개발 워크플로를 강화한 릴리스입니다.
+<p align="center"><img src="Resources/McDuck-title.png" width="120" alt="McDuck"></p>
 
-**Claude Code 연동 (MCP · 스킬 · 플러그인)**
+McDuck을 Claude Code와 연결하고, 메뉴바 사용량 표시를 강화한 릴리스입니다.
 
-- **MCP 서버 `mcduck-mcp`**: 사용량을 stdio MCP 서버로 제공 — 툴 `usage_summary` / `daily_usage` / `model_breakdown`. `McDuckCore`의 ccusage 파싱을 재사용합니다.
-- **`usage-report` 스킬 + Claude Code 플러그인**: MCP 서버와 스킬을 하나의 플러그인으로 묶어 마켓플레이스로 배포합니다. `/plugin marketplace add hanoseok/McDuck` → `/plugin install mcduck@mcduck`.
-- **앱 번들에 플러그인 동봉**: `McDuck.app`에 마켓플레이스·플러그인·프리빌트 `mcduck-mcp` 바이너리를 포함해, 네트워크·Swift 툴체인 없이 로컬에서 설치할 수 있습니다.
-- **설정에서 등록/제거**: 설정 패널에서 미설치면 "Add to Claude Code", 설치돼 있으면 "Remove from Claude Code". `claude` CLI를 먼저 시도하고, 실패 시 `~/.claude/settings.json`의 마켓플레이스·`enabledPlugins`를 안전 병합으로 추가/제거합니다.
-- **릴리스 자산 + 런처**: release/snapshot이 `mcduck-mcp` 바이너리를 첨부하고, 플러그인 런처가 이를 받아 씁니다(없으면 소스 빌드 폴백).
+**McDuck MCP 플러그인이 생겼어요**
 
-**메뉴바 사용량 라벨**
+- 설정에서 바로 설치할 수 있고, `mcduck`으로 필요한 기능(사용량 조회 등)을 Claude Code에서 쓸 수 있어요. (설정에서 제거도 가능)
+- 앱만 설치하면 플러그인이 함께 들어 있어 따로 받을 필요가 없어요.
 
-- **기간 + 지표 선택**: 기간(None / Today / Week / Month / Total, 기본 Today)과 지표(Token / Cost / Both, 기본 Both)를 설정에서 각각 고릅니다. 비용은 소수점 없이, Both는 2줄로 표시하며 아이콘 크기는 고정됩니다.
-- **실행 즉시 프리페치**: 앱이 켜지면 팝오버를 열지 않아도 ccusage를 바로 가져와 메뉴바 숫자를 준비합니다.
+**메뉴바에서 한눈에**
 
-**시스템 통합**
+- 메뉴바에 오늘 / 이번주 / 이번달 / 전체 사용량을 토큰·비용으로 표시해요. (설정에서 선택)
+- 앱을 켜두면 클릭하지 않아도 숫자가 자동으로 갱신돼요.
 
-- **로그인 시 자동 실행**: 설정에서 `SMAppService`로 로그인 항목을 토글합니다(`.notFound`일 때도 등록을 시도하고 실패 시 에러 표시).
-- **앱 아이콘 통일**: Finder/Dock 아이콘을 팝오버 헤더 이미지(`McDuck-title.png`)와 동일하게 생성합니다.
+**더 편해진 점**
 
-**설치 · 빌드 · 개발**
+- 로그인 시 자동 실행을 켜고 끌 수 있어요.
+- 설치할 때 버전이 표시돼 더 친절해졌어요.
+- 앱 아이콘이 새 디자인으로 바뀌었어요.
 
-- **설치 스크립트 버전 표시**: `install.sh`/`install-snapshot.sh`가 다운로드·설치·완료 메시지에 버전을 표시합니다(latest는 `releases/latest` 리다이렉트로 실제 버전 해석).
-- **자정 날짜 롤오버**: 토큰박스를 직접 클릭하지 않았으면 00시에 기본 선택일이 다음 날로 이동합니다.
-- **TDD + 리그레션 스위트**: 앱 타깃(`McDuckTests`)·MCP(`McDuckMCPTests`) 테스트를 추가하고 테스트 우선 워크플로를 채택했습니다.
-- **빌드 파이프라인**: 태그 기반 빌드, 스냅샷 채널, 클라우드 에이전트 브리지(`cut.yml`)를 정비했습니다.
+**설치 / 업데이트**
+
+```bash
+curl -fsSL https://github.com/hanoseok/McDuck/releases/latest/download/install.sh | bash
+```
 
 ### 1.0 (Stable)
 
