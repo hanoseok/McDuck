@@ -37,6 +37,8 @@
 
 ### 1.1.0-SNAPSHOT (Development)
 
+- **실행 즉시 사용량 프리페치**: 앱이 켜지면(팝오버를 열지 않아도) 메뉴바 라벨의 `.task`에서 자동 새로고침을 시작해 ccusage를 바로 가져옵니다. 메뉴바 숫자가 클릭 없이 준비됩니다.
+
 - **MCP 서버(`mcduck-mcp`)**: 사용량 데이터를 stdio MCP 서버로 제공합니다(`usage_summary`/`daily_usage`/`model_breakdown`). `McDuckCore` 파싱을 재사용합니다.
 - **Claude Code 플러그인(`plugin/`)**: MCP 서버 + `usage-report` 스킬을 묶은 플러그인. `/plugin marketplace add hanoseok/McDuck` 후 `/plugin install mcduck@mcduck`로 설치.
 - **앱에 플러그인 동봉**: `McDuck.app`에 마켓플레이스+플러그인+프리빌트 `mcduck-mcp` 바이너리를 넣어, 앱을 설치하면 네트워크·툴체인 없이 로컬 경로로 마켓플레이스를 등록·설치할 수 있습니다.
