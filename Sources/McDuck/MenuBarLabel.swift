@@ -23,19 +23,27 @@ struct MenuBarLabel: View {
 
     /// Renders the icon + stacked tokens/cost to a template image that the menu
     /// bar scales to fit its height.
+    ///
+    /// The icon is sized to the full composite height so that, after the menu bar
+    /// scales the whole image down to the bar height, the icon ends up at the bar
+    /// height — the same size as when no text is shown. (If the icon were shorter
+    /// than the two-line text, scaling would shrink it.)
     @MainActor
     private static func render(tokens: String, cost: String) -> NSImage? {
+        let height: CGFloat = 20
         let content = HStack(spacing: 3) {
             Image("MenuBarIcon")
                 .renderingMode(.template)
                 .resizable()
-                .frame(width: 16, height: 16)
+                .scaledToFit()
+                .frame(height: height)
             VStack(alignment: .trailing, spacing: -1) {
                 Text(tokens)
                 Text(cost)
             }
-            .font(.system(size: 9, weight: .medium))
+            .font(.system(size: 8, weight: .medium))
         }
+        .frame(height: height)
 
         let renderer = ImageRenderer(content: content)
         renderer.scale = 2
