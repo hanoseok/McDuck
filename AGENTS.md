@@ -234,7 +234,7 @@ shasum -a 256 -c McDuck-<버전>-macos.zip.sha256
 
 이미지는 `Resources/`에 두고, `build-app.sh`가 앱 번들에 넣습니다. (SwiftPM `Bundle.module`은 사용하지 않습니다 — 아래 "에셋/리소스 로딩 주의" 참고.)
 
-- **앱 아이콘(Finder/설치 마법사):** `Resources/AppIcon.png` → `build-app.sh`가 `iconutil`로 `AppIcon.icns` 생성, `Info.plist`의 `CFBundleIconFile=AppIcon`.
+- **앱 아이콘(Finder/설치 마법사):** `Resources/McDuck-title.png`(팝오버 헤더와 동일 이미지) → `build-app.sh`가 `iconutil`로 `AppIcon.icns` 생성, `Info.plist`의 `CFBundleIconFile=AppIcon`.
 - **타이틀(팝오버 헤더) 아이콘:** `Resources/McDuck-title.png` → `Contents/Resources/`로 복사, 앱이 `Bundle.main`으로 로드(`AppImages.titleIcon`).
 - **메뉴바 아이콘:** `Resources/McDuck-menubar.png` → `build-app.sh`가 `sips`로 `Resources/Assets.xcassets/MenuBarIcon.imageset`의 1x/2x/3x(현재 24pt = 24/48/72px)를 재생성하고, `actool`로 `Assets.car`(메인 번들)로 컴파일. 앱은 `MenuBarExtra("McDuck", image: "MenuBarIcon")`로 표시.
 - 메뉴바 아이콘 크기를 바꾸려면 imageset의 px(=point×scale)만 조정합니다. macOS 메뉴바 높이(~22pt) 한계가 있어 그 이상은 줄여서 표시될 수 있습니다.

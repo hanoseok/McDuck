@@ -36,9 +36,10 @@ if [[ -n "${MCDUCK_VERSION:-}" ]]; then
   echo "Stamped version $SHORT_VERSION (build $BUILD_VERSION)"
 fi
 
-# App icon: build AppIcon.icns from Resources/AppIcon.png (a 1024x1024 PNG)
-# when present. Info.plist references it via CFBundleIconFile=AppIcon.
-ICON_SRC="$ROOT_DIR/Resources/AppIcon.png"
+# App icon: build AppIcon.icns from the title image (Resources/McDuck-title.png)
+# so the Finder/Dock icon matches the popover header. Info.plist references the
+# result via CFBundleIconFile=AppIcon.
+ICON_SRC="$ROOT_DIR/Resources/McDuck-title.png"
 if [[ -f "$ICON_SRC" ]] && command -v iconutil >/dev/null 2>&1 && command -v sips >/dev/null 2>&1; then
   ICONSET_DIR="$(mktemp -d)/AppIcon.iconset"
   mkdir -p "$ICONSET_DIR"
