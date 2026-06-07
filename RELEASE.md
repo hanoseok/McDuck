@@ -37,6 +37,7 @@
 
 ### 1.1.0-SNAPSHOT (Development)
 
+- **로그인 항목 토글 개선**: `SMAppService` 상태가 `.notFound`(ad-hoc 서명·앱 위치 등으로 흔함)일 때도 "Launch at Login"을 비활성("unavailable")로 숨기지 않고 **토글을 제공**해 등록을 시도하고, 실패 시 실제 에러를 보여줍니다.
 - **실행 즉시 사용량 프리페치**: 앱이 켜지면(팝오버를 열지 않아도) 메뉴바 라벨의 `.task`에서 자동 새로고침을 시작해 ccusage를 바로 가져옵니다. 메뉴바 숫자가 클릭 없이 준비됩니다.
 
 - **MCP 서버(`mcduck-mcp`)**: 사용량 데이터를 stdio MCP 서버로 제공합니다(`usage_summary`/`daily_usage`/`model_breakdown`). `McDuckCore` 파싱을 재사용합니다.
