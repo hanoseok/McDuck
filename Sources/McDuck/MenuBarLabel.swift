@@ -1,56 +1,66 @@
 import SwiftUI
 
-/// The menu-bar status item label: the McDuck icon with the selected period's
-/// tokens (top) and cost (bottom) stacked.
+/// The menu-bar status item: the McDuck icon plus the selected period's metric(s).
 ///
-/// The two lines are rendered into a template `NSImage` rather than laid out as
-/// live `Text`, because the menu bar is one row tall and clips live two-line
-/// text to just the top line. An image is scaled to the bar height, so both
-/// lines stay visible. Falls back to the plain icon for `.none` / no data.
+/// The icon is a **live** image at a fixed size, so it never changes size whether
+/// or not text is shown. Only the text (tokens and/or cost) is rendered to an
+/// image — the menu bar clips live two-line text to one row, but an image is
+/// scaled to fit, so stacked values stay visible. The icon stays out of that
+/// image so it isn't scaled down with the text.
 struct MenuBarLabel: View {
     let store: UsageStore
     let settings: SettingsStore
 
+    /// Fixed icon size, used in every state so the icon never resizes.
+    private static let iconHeight: CGFloat = 18
+
     var body: some View {
         if settings.menuBarPeriod != .none,
            let usage = store.menuBarUsage(for: settings.menuBarPeriod),
-           let image = Self.render(tokens: usage.tokens, cost: usage.cost) {
-            Image(nsImage: image)
+           let textImage = Self.renderText(usage: usage, metric: settings.menuBarMetric) {
+            HStack(spacing: 4) {
+                icon
+                Image(nsImage: textImage)
+            }
         } else {
-            Image("MenuBarIcon")
+            icon
         }
     }
 
-    /// Renders the icon + stacked tokens/cost to a template image that the menu
-    /// bar scales to fit its height.
-    ///
-    /// The icon is sized to the full composite height so that, after the menu bar
-    /// scales the whole image down to the bar height, the icon ends up at the bar
-    /// height — the same size as when no text is shown. (If the icon were shorter
-    /// than the two-line text, scaling would shrink it.)
+    private var icon: some View {
+        Image("MenuBarIcon")
+            .resizable()
+            .scaledToFit()
+            .frame(width: Self.iconHeight, height: Self.iconHeight)
+    }
+
+    /// Renders just the metric line(s) to a template image (excludes the icon).
     @MainActor
-    private static func render(tokens: String, cost: String) -> NSImage? {
-        let height: CGFloat = 20
-        let content = HStack(spacing: 3) {
-            Image("MenuBarIcon")
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .frame(height: height)
-            VStack(alignment: .trailing, spacing: -1) {
-                Text(tokens)
-                Text(cost)
-            }
-            .font(.system(size: 8, weight: .medium))
+    private static func renderText(
+        usage: (tokens: String, cost: String),
+        metric: MenuBarMetric
+    ) -> NSImage? {
+        let lines: [String]
+        switch metric {
+        case .token: lines = [usage.tokens]
+        case .cost: lines = [usage.cost]
+        case .both: lines = [usage.tokens, usage.cost]
         }
-        .frame(height: height)
+
+        let content = VStack(alignment: .trailing, spacing: -1) {
+            ForEach(lines, id: \.self) { line in
+                Text(line)
+            }
+        }
+        // One value can use a larger font; two stacked values need a smaller one
+        // to fit the menu-bar height.
+        .font(.system(size: metric == .both ? 8 : 11, weight: .medium))
 
         let renderer = ImageRenderer(content: content)
         renderer.scale = 2
         guard let image = renderer.nsImage else {
             return nil
         }
-        // Template so the icon + text adapt to the menu bar's light/dark style.
         image.isTemplate = true
         return image
     }

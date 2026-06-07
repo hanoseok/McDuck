@@ -55,22 +55,46 @@ struct SettingsView: View {
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text("Menu bar")
                     .font(.subheadline)
-                Text("Usage window shown next to the icon (tokens over cost).")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Picker("Menu bar", selection: Binding(
-                    get: { settings.menuBarPeriod },
-                    set: { settings.setMenuBarPeriod($0) }
-                )) {
-                    ForEach(MenuBarPeriod.allCases) { option in
-                        Text(option.title).tag(option)
+
+                HStack {
+                    Text("Period")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Picker("Period", selection: Binding(
+                        get: { settings.menuBarPeriod },
+                        set: { settings.setMenuBarPeriod($0) }
+                    )) {
+                        ForEach(MenuBarPeriod.allCases) { option in
+                            Text(option.title).tag(option)
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .fixedSize()
                 }
-                .pickerStyle(.menu)
-                .labelsHidden()
+
+                HStack {
+                    Text("Show")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Picker("Show", selection: Binding(
+                        get: { settings.menuBarMetric },
+                        set: { settings.setMenuBarMetric($0) }
+                    )) {
+                        ForEach(MenuBarMetric.allCases) { option in
+                            Text(option.title).tag(option)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .fixedSize()
+                    .disabled(settings.menuBarPeriod == .none)
+                }
             }
 
             Divider()

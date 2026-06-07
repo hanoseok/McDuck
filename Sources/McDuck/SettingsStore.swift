@@ -23,6 +23,23 @@ enum MenuBarPeriod: String, CaseIterable, Identifiable {
     }
 }
 
+/// Which metric(s) the menu bar shows for the selected period.
+enum MenuBarMetric: String, CaseIterable, Identifiable {
+    case token
+    case cost
+    case both
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .token: "Token"
+        case .cost: "Cost"
+        case .both: "Both"
+        }
+    }
+}
+
 /// Holds user-facing app settings. Currently the login-item toggle; this is the
 /// home for future preferences (refresh interval, budget alerts, currency).
 @MainActor
@@ -40,6 +57,7 @@ final class SettingsStore {
     private let defaults: UserDefaults
     private let pluginInstaller: any PluginInstalling
     private static let menuBarPeriodKey = "menuBarPeriod"
+    private static let menuBarMetricKey = "menuBarMetric"
 
     /// Current login-item registration state, synced from the system.
     private(set) var loginItemState: LoginItemState
@@ -49,6 +67,10 @@ final class SettingsStore {
     /// Which usage window the menu bar shows; persisted across launches. Update
     /// through `setMenuBarPeriod(_:)` so the choice is written to UserDefaults.
     private(set) var menuBarPeriod: MenuBarPeriod
+
+    /// Which metric(s) the menu bar shows; persisted. Update through
+    /// `setMenuBarMetric(_:)`.
+    private(set) var menuBarMetric: MenuBarMetric
 
     /// Progress of the "Add to Claude Code" / "Remove" action.
     private(set) var pluginInstallPhase: PluginInstallPhase = .idle
@@ -67,6 +89,8 @@ final class SettingsStore {
         self.loginItemState = loginItem.currentState()
         self.menuBarPeriod = defaults.string(forKey: Self.menuBarPeriodKey)
             .flatMap(MenuBarPeriod.init(rawValue:)) ?? .today
+        self.menuBarMetric = defaults.string(forKey: Self.menuBarMetricKey)
+            .flatMap(MenuBarMetric.init(rawValue:)) ?? .both
         self.isPluginInstalled = pluginInstaller.isInstalled()
     }
 
@@ -129,6 +153,12 @@ final class SettingsStore {
     func setMenuBarPeriod(_ value: MenuBarPeriod) {
         menuBarPeriod = value
         defaults.set(value.rawValue, forKey: Self.menuBarPeriodKey)
+    }
+
+    /// Updates the menu-bar metric choice and persists it.
+    func setMenuBarMetric(_ value: MenuBarMetric) {
+        menuBarMetric = value
+        defaults.set(value.rawValue, forKey: Self.menuBarMetricKey)
     }
 
     /// True while the plugin registration is running.
