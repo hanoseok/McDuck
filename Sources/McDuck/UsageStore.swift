@@ -105,8 +105,13 @@ final class UsageStore {
     var dailyActivity: [String: TimeInterval] = [:]
     var setupLog: String?
     var lastUpdated: Date?
+    /// Local-calendar "today" (yyyy-MM-dd). Observable so the default heatmap
+    /// selection rolls over to the new day at midnight while the popover stays
+    /// open. Refreshed by `scheduleMidnightRollover()` and on every refresh.
+    private(set) var today: String = DateOnly.string(from: Date())
 
     @ObservationIgnored private var autoRefreshTask: Task<Void, Never>?
+    @ObservationIgnored private var midnightTask: Task<Void, Never>?
 
     init(
         client: CcusageClient = CcusageClient(),
@@ -121,6 +126,50 @@ final class UsageStore {
             dashboard
         } else {
             nil
+        }
+    }
+
+    // MARK: - Menu bar label
+
+    /// Tokens and cost for the menu-bar label over the chosen period, or nil
+    /// when there is nothing to show (period `.none`, or no usage yet).
+    func menuBarUsage(for period: MenuBarPeriod) -> (tokens: String, cost: String)? {
+        guard let days = menuBarDays(for: period), !days.isEmpty else {
+            return nil
+        }
+        let tokens = days.reduce(0) { $0 + $1.totalTokens }
+        let cost = days.reduce(0.0) { $0 + $1.costUSD }
+        return (Formatters.compact(tokens), Formatters.currencyWhole(cost))
+    }
+
+    /// Usage days inside the menu-bar period (relative to today); nil for
+    /// `.none` or when no report is loaded.
+    private func menuBarDays(for period: MenuBarPeriod) -> [UsageDay]? {
+        guard period != .none, let report = dashboard?.report else {
+            return nil
+        }
+        let calendar = gregorian
+        let todayStart = calendar.startOfDay(for: Date())
+
+        let start: Date?
+        switch period {
+        case .none:
+            return nil
+        case .today:
+            start = todayStart
+        case .week:
+            start = calendar.date(byAdding: .day, value: -6, to: todayStart)
+        case .month:
+            let back = calendar.date(byAdding: .month, value: -1, to: todayStart)
+            start = back.flatMap { calendar.date(byAdding: .day, value: 1, to: $0) }
+        case .total:
+            start = nil
+        }
+
+        return report.days.filter { day in
+            let date = calendar.startOfDay(for: day.date)
+            if let start, date < start { return false }
+            return date <= todayStart
         }
     }
 
@@ -229,13 +278,20 @@ final class UsageStore {
         return formatter
     }()
 
+    /// Date string of the highlighted token box: the user's explicit pick, or
+    /// today by default. `selectedDateString` stays nil until a box is tapped,
+    /// so the default follows the calendar (`today`) and rolls over at midnight.
+    var effectiveSelectedDateString: String? {
+        selectedDateString ?? today
+    }
+
     var selectedDay: UsageDay? {
         guard let report = dashboard?.report else {
             return nil
         }
 
-        if let selectedDateString,
-           let day = report.days.first(where: { $0.dateString == selectedDateString }) {
+        if let key = effectiveSelectedDateString,
+           let day = report.days.first(where: { $0.dateString == key }) {
             return day
         }
 
@@ -255,12 +311,39 @@ final class UsageStore {
             return
         }
 
+        scheduleMidnightRollover()
+
         autoRefreshTask = Task { [weak self] in
             await self?.refreshIfNeeded()
             while !Task.isCancelled {
                 try? await Task.sleep(for: interval)
                 guard !Task.isCancelled else { break }
                 await self?.refresh(quiet: true)
+            }
+        }
+    }
+
+    /// Rolls `today` forward at each local midnight so the default heatmap
+    /// selection follows the calendar day without waiting for a data refresh.
+    private func scheduleMidnightRollover() {
+        guard midnightTask == nil else {
+            return
+        }
+
+        midnightTask = Task { [weak self] in
+            let calendar = Calendar(identifier: .gregorian)
+            while !Task.isCancelled {
+                let now = Date()
+                guard let nextMidnight = calendar.nextDate(
+                    after: now,
+                    matching: DateComponents(hour: 0, minute: 0, second: 0),
+                    matchingPolicy: .nextTime
+                ) else {
+                    return
+                }
+                try? await Task.sleep(for: .seconds(max(1, nextMidnight.timeIntervalSince(now))))
+                guard !Task.isCancelled else { break }
+                self?.today = DateOnly.string(from: Date())
             }
         }
     }
@@ -281,6 +364,9 @@ final class UsageStore {
     /// on screen (no loading/empty/error flash); it only swaps in fresh data on
     /// success. Used by the auto-refresh loop and the manual refresh button.
     func refresh(quiet: Bool) async {
+        // Catch up the calendar day in case the midnight timer drifted across
+        // a system sleep/wake while the popover was closed.
+        today = DateOnly.string(from: Date())
         if quiet {
             isRefreshing = true
         } else {
@@ -344,7 +430,6 @@ final class UsageStore {
                 return
             }
 
-            selectedDateString = selectedDateString ?? report.days.last?.dateString
             phase = .loaded(DashboardData(report: report))
             lastUpdated = Date()
 

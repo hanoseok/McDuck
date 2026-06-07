@@ -162,7 +162,7 @@ shasum -a 256 -c McDuck-<버전>-checksums.sha256
 
 | 용도 | 소스 | 처리 | 런타임 로드 |
 | --- | --- | --- | --- |
-| 앱 아이콘(Finder/설치 마법사) | `Resources/AppIcon.png` | `iconutil` → `AppIcon.icns` | `Info.plist`의 `CFBundleIconFile=AppIcon` |
+| 앱 아이콘(Finder/설치 마법사) | `Resources/McDuck-title.png`(헤더와 동일) | `iconutil` → `AppIcon.icns` | `Info.plist`의 `CFBundleIconFile=AppIcon` |
 | 타이틀(팝오버 헤더) | `Resources/McDuck-title.png` | `Contents/Resources/`로 복사 | `Bundle.main` (`AppImages.titleIcon`) |
 | 메뉴바 | `Resources/McDuck-menubar.png` | `sips`로 imageset(1x/2x/3x) 재생성 → `actool`로 `Assets.car` 컴파일 | `MenuBarExtra("McDuck", image: "MenuBarIcon")` |
 

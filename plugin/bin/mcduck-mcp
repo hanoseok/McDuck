@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Launcher for the McDuck MCP server used by the plugin's mcpServers config.
+#
+# The server is a compiled Swift binary (Sources/mcduck-mcp). This script finds
+# a usable binary, or builds it from the bundled Swift package, then execs it so
+# stdin/stdout (the JSON-RPC stream) pass straight through.
+#
+# IMPORTANT: only the server's JSON-RPC may reach stdout. Any build/diagnostic
+# output is sent to stderr.
+set -euo pipefail
+
+BIN_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(dirname "$BIN_DIR")"
+REPO_ROOT="$(dirname "$PLUGIN_ROOT")"
+
+# 1) Explicit override.
+if [ -n "${MCDUCK_MCP_BIN:-}" ] && [ -x "${MCDUCK_MCP_BIN}" ]; then
+  exec "${MCDUCK_MCP_BIN}" "$@"
+fi
+
+# 2) Prebuilt binary shipped alongside the launcher (bundled in the plugin /
+#    attached by the release).
+if [ -x "${BIN_DIR}/mcduck-mcp-bin" ]; then
+  exec "${BIN_DIR}/mcduck-mcp-bin" "$@"
+fi
+
+# 2b) A binary bundled inside an installed McDuck.app (the menu-bar app ships
+#     the server in Contents/Resources/ClaudePlugin/plugin/bin).
+for app_bin in \
+  "/Applications/McDuck.app/Contents/Resources/ClaudePlugin/plugin/bin/mcduck-mcp-bin" \
+  "${HOME}/Applications/McDuck.app/Contents/Resources/ClaudePlugin/plugin/bin/mcduck-mcp-bin"; do
+  if [ -x "${app_bin}" ]; then
+    exec "${app_bin}" "$@"
+  fi
+done
+
+# 3) A previously built product in the package's build dir.
+if [ -x "${REPO_ROOT}/.build/release/mcduck-mcp" ]; then
+  exec "${REPO_ROOT}/.build/release/mcduck-mcp" "$@"
+fi
+
+# 4) A cached binary downloaded from a release on a previous run.
+CACHE_DIR="${CLAUDE_PLUGIN_DATA:-${PLUGIN_ROOT}/.cache}"
+CACHED="${CACHE_DIR}/mcduck-mcp"
+if [ -x "${CACHED}" ]; then
+  exec "${CACHED}" "$@"
+fi
+
+# 5) Download a prebuilt binary from GitHub releases and cache it. The published
+# binary is arm64 (Apple Silicon); on Intel we skip straight to building.
+if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ] && command -v curl >/dev/null 2>&1; then
+  mkdir -p "${CACHE_DIR}"
+  for url in \
+    "https://github.com/hanoseok/McDuck/releases/latest/download/mcduck-mcp-macos" \
+    "https://github.com/hanoseok/McDuck/releases/download/snapshot-latest/mcduck-mcp-macos"; do
+    if curl -fsSL "$url" -o "${CACHED}.tmp" 2>/dev/null && [ -s "${CACHED}.tmp" ]; then
+      chmod +x "${CACHED}.tmp"
+      mv "${CACHED}.tmp" "${CACHED}"
+      exec "${CACHED}" "$@"
+    fi
+  done
+  rm -f "${CACHED}.tmp"
+fi
+
+# 6) Build from source if the Swift package and toolchain are available.
+if [ -f "${REPO_ROOT}/Package.swift" ] && command -v swift >/dev/null 2>&1; then
+  echo "mcduck-mcp: building from source (first run only)..." >&2
+  swift build -c release --package-path "${REPO_ROOT}" --product mcduck-mcp >&2
+  exec "${REPO_ROOT}/.build/release/mcduck-mcp" "$@"
+fi
+
+echo "mcduck-mcp: no server binary found." >&2
+echo "Set MCDUCK_MCP_BIN to a built mcduck-mcp, or install the Swift toolchain so it can build from ${REPO_ROOT}." >&2
+exit 1

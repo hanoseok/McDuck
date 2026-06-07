@@ -4,6 +4,9 @@ import SwiftUI
 
 struct McDuckPopover: View {
     @Bindable var store: UsageStore
+    @Bindable var settings: SettingsStore
+
+    @State private var isSettingsPresented = false
 
     var body: some View {
         McDuckGlassContainer {
@@ -43,6 +46,18 @@ struct McDuckPopover: View {
             }
 
             Spacer()
+
+            Button {
+                isSettingsPresented = true
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .mcDuckGlassButton()
+            .controlSize(.small)
+            .help("Settings")
+            .popover(isPresented: $isSettingsPresented, arrowEdge: .top) {
+                SettingsView(settings: settings)
+            }
         }
     }
 
@@ -118,7 +133,10 @@ struct McDuckPopover: View {
 
                 HeatmapGrid(
                     cells: store.heatmapCells,
-                    selectedDateString: $store.selectedDateString,
+                    selectedDateString: Binding(
+                        get: { store.effectiveSelectedDateString },
+                        set: { store.selectedDateString = $0 }
+                    ),
                     scrollAnchor: store.selectedYear == nil ? .trailing : .leading
                 )
                 .id(store.selectedYear)
