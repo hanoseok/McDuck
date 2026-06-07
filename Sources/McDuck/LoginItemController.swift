@@ -40,7 +40,11 @@ struct SMAppServiceLoginItem: LoginItemControlling {
         case .requiresApproval:
             return .requiresApproval
         case .notFound:
-            return .unavailable
+            // `.notFound` is common for ad-hoc-signed or relocated apps, but
+            // registering can still work (and if it can't, the error from
+            // register() is far more useful than hiding the control). So treat
+            // it as "not registered yet" and let the user try.
+            return .disabled
         @unknown default:
             return .unavailable
         }
