@@ -66,6 +66,8 @@ public struct ProcessCommandRunner: CommandRunner {
         } catch {
             return CommandResult(exitCode: 127, stdout: "", stderr: error.localizedDescription)
         }
+        stdoutPipe.fileHandleForWriting.closeFile()
+        stderrPipe.fileHandleForWriting.closeFile()
 
         output.start()
 
