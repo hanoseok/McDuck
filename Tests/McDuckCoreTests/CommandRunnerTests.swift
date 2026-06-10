@@ -60,6 +60,20 @@ struct CommandRunnerTests {
         #expect(result.stderr.lowercased().contains("timed out"))
     }
 
+    @Test("drains large stdout while the process is still running")
+    func drainsLargeStdoutWhileRunning() async {
+        let result = await ProcessCommandRunner().run(
+            CommandRequest(
+                executable: "/bin/sh",
+                arguments: ["-c", "/usr/bin/yes x | /usr/bin/head -c 200000"],
+                timeout: 2
+            )
+        )
+
+        #expect(result.exitCode == 0)
+        #expect(result.stdout.utf8.count == 200_000)
+    }
+
     @Test("CommandRequest applies its documented defaults")
     func commandRequestDefaults() {
         let request = CommandRequest(executable: "/bin/echo", arguments: ["x"])
