@@ -127,21 +127,15 @@ private final class PipeOutputCollector: @unchecked Sendable {
         DispatchQueue.global(qos: .utility).async { [self] in
             defer { group.leave() }
 
-            while true {
-                let chunk = handle.availableData
-                if chunk.isEmpty {
-                    return
-                }
-
-                lock.lock()
-                switch stream {
-                case .stdout:
-                    stdoutData.append(chunk)
-                case .stderr:
-                    stderrData.append(chunk)
-                }
-                lock.unlock()
+            let data = handle.readDataToEndOfFile()
+            lock.lock()
+            switch stream {
+            case .stdout:
+                stdoutData.append(data)
+            case .stderr:
+                stderrData.append(data)
             }
+            lock.unlock()
         }
     }
 
