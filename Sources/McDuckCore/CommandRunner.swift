@@ -100,10 +100,10 @@ public struct ProcessCommandRunner: CommandRunner {
 private final class PipeOutputCollector: @unchecked Sendable {
     private let stdout: FileHandle
     private let stderr: FileHandle
-    private let group = DispatchGroup()
-    private let lock = NSLock()
+    private let condition = NSCondition()
     private var stdoutData = Data()
     private var stderrData = Data()
+    private var completedStreams: Set<PipeStream> = []
 
     init(stdout: Pipe, stderr: Pipe) {
         self.stdout = stdout.fileHandleForReading
@@ -116,30 +116,50 @@ private final class PipeOutputCollector: @unchecked Sendable {
     }
 
     func finish() -> (stdout: Data, stderr: Data) {
-        group.wait()
-        lock.lock()
-        defer { lock.unlock() }
-        return (stdoutData, stderrData)
+        let deadline = Date().addingTimeInterval(2)
+
+        condition.lock()
+        while completedStreams.count < 2, Date() < deadline {
+            condition.wait(until: deadline)
+        }
+        let captured = (stdoutData, stderrData)
+        condition.unlock()
+
+        stdout.readabilityHandler = nil
+        stderr.readabilityHandler = nil
+        return captured
     }
 
     private func read(_ handle: FileHandle, stream: PipeStream) {
-        group.enter()
-        DispatchQueue.global(qos: .utility).async { [self] in
-            defer { group.leave() }
-
-            let data = handle.readDataToEndOfFile()
-            lock.lock()
-            switch stream {
-            case .stdout:
-                stdoutData.append(data)
-            case .stderr:
-                stderrData.append(data)
+        handle.readabilityHandler = { [weak self] handle in
+            let chunk = handle.availableData
+            if chunk.isEmpty {
+                handle.readabilityHandler = nil
             }
-            lock.unlock()
+
+            self?.record(chunk, stream: stream)
         }
     }
 
-    private enum PipeStream: Sendable {
+    private func record(_ chunk: Data, stream: PipeStream) {
+        condition.lock()
+        defer { condition.unlock() }
+
+        if chunk.isEmpty {
+            completedStreams.insert(stream)
+            condition.broadcast()
+            return
+        }
+
+        switch stream {
+        case .stdout:
+            stdoutData.append(chunk)
+        case .stderr:
+            stderrData.append(chunk)
+        }
+    }
+
+    private enum PipeStream: Hashable, Sendable {
         case stdout
         case stderr
     }
