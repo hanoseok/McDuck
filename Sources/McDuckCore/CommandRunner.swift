@@ -48,6 +48,7 @@ public struct ProcessCommandRunner: CommandRunner {
         let process = Process()
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
+        let output = PipeOutputCollector(stdout: stdoutPipe, stderr: stderrPipe)
 
         process.executableURL = URL(fileURLWithPath: request.executable)
         process.arguments = request.arguments
@@ -66,6 +67,8 @@ public struct ProcessCommandRunner: CommandRunner {
             return CommandResult(exitCode: 127, stdout: "", stderr: error.localizedDescription)
         }
 
+        output.start()
+
         let timeoutAt = Date().addingTimeInterval(request.timeout)
         while process.isRunning, Date() < timeoutAt {
             Thread.sleep(forTimeInterval: 0.05)
@@ -74,18 +77,74 @@ public struct ProcessCommandRunner: CommandRunner {
         if process.isRunning {
             process.terminate()
             process.waitUntilExit()
+            let captured = output.finish()
             return CommandResult(
                 exitCode: -9,
-                stdout: String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "",
+                stdout: String(data: captured.stdout, encoding: .utf8) ?? "",
                 stderr: "Command timed out after \(Int(request.timeout)) seconds."
             )
         }
 
         process.waitUntilExit()
+        let captured = output.finish()
         return CommandResult(
             exitCode: process.terminationStatus,
-            stdout: String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "",
-            stderr: String(data: stderrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            stdout: String(data: captured.stdout, encoding: .utf8) ?? "",
+            stderr: String(data: captured.stderr, encoding: .utf8) ?? ""
         )
+    }
+}
+
+private final class PipeOutputCollector: @unchecked Sendable {
+    private let stdout: FileHandle
+    private let stderr: FileHandle
+    private let group = DispatchGroup()
+    private let lock = NSLock()
+    private var stdoutData = Data()
+    private var stderrData = Data()
+
+    init(stdout: Pipe, stderr: Pipe) {
+        self.stdout = stdout.fileHandleForReading
+        self.stderr = stderr.fileHandleForReading
+    }
+
+    func start() {
+        read(stdout, stream: .stdout)
+        read(stderr, stream: .stderr)
+    }
+
+    func finish() -> (stdout: Data, stderr: Data) {
+        group.wait()
+        lock.lock()
+        defer { lock.unlock() }
+        return (stdoutData, stderrData)
+    }
+
+    private func read(_ handle: FileHandle, stream: PipeStream) {
+        group.enter()
+        DispatchQueue.global(qos: .utility).async { [self] in
+            defer { group.leave() }
+
+            while true {
+                let chunk = handle.availableData
+                if chunk.isEmpty {
+                    return
+                }
+
+                lock.lock()
+                switch stream {
+                case .stdout:
+                    stdoutData.append(chunk)
+                case .stderr:
+                    stderrData.append(chunk)
+                }
+                lock.unlock()
+            }
+        }
+    }
+
+    private enum PipeStream: Sendable {
+        case stdout
+        case stderr
     }
 }
