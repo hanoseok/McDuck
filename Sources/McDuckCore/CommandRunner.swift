@@ -48,6 +48,7 @@ public struct ProcessCommandRunner: CommandRunner {
         let process = Process()
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
+        let output = PipeOutputCollector(stdout: stdoutPipe, stderr: stderrPipe)
 
         process.executableURL = URL(fileURLWithPath: request.executable)
         process.arguments = request.arguments
@@ -65,6 +66,10 @@ public struct ProcessCommandRunner: CommandRunner {
         } catch {
             return CommandResult(exitCode: 127, stdout: "", stderr: error.localizedDescription)
         }
+        stdoutPipe.fileHandleForWriting.closeFile()
+        stderrPipe.fileHandleForWriting.closeFile()
+
+        output.start()
 
         let timeoutAt = Date().addingTimeInterval(request.timeout)
         while process.isRunning, Date() < timeoutAt {
@@ -74,18 +79,88 @@ public struct ProcessCommandRunner: CommandRunner {
         if process.isRunning {
             process.terminate()
             process.waitUntilExit()
+            let captured = output.finish()
             return CommandResult(
                 exitCode: -9,
-                stdout: String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "",
+                stdout: String(data: captured.stdout, encoding: .utf8) ?? "",
                 stderr: "Command timed out after \(Int(request.timeout)) seconds."
             )
         }
 
         process.waitUntilExit()
+        let captured = output.finish()
         return CommandResult(
             exitCode: process.terminationStatus,
-            stdout: String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "",
-            stderr: String(data: stderrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            stdout: String(data: captured.stdout, encoding: .utf8) ?? "",
+            stderr: String(data: captured.stderr, encoding: .utf8) ?? ""
         )
+    }
+}
+
+private final class PipeOutputCollector: @unchecked Sendable {
+    private let stdout: FileHandle
+    private let stderr: FileHandle
+    private let condition = NSCondition()
+    private var stdoutData = Data()
+    private var stderrData = Data()
+    private var completedStreams: Set<PipeStream> = []
+
+    init(stdout: Pipe, stderr: Pipe) {
+        self.stdout = stdout.fileHandleForReading
+        self.stderr = stderr.fileHandleForReading
+    }
+
+    func start() {
+        read(stdout, stream: .stdout)
+        read(stderr, stream: .stderr)
+    }
+
+    func finish() -> (stdout: Data, stderr: Data) {
+        let deadline = Date().addingTimeInterval(2)
+
+        condition.lock()
+        while completedStreams.count < 2, Date() < deadline {
+            condition.wait(until: deadline)
+        }
+        let captured = (stdoutData, stderrData)
+        condition.unlock()
+
+        stdout.readabilityHandler = nil
+        stderr.readabilityHandler = nil
+        return captured
+    }
+
+    private func read(_ handle: FileHandle, stream: PipeStream) {
+        handle.readabilityHandler = { [weak self] handle in
+            let chunk = handle.availableData
+            if chunk.isEmpty {
+                handle.readabilityHandler = nil
+            }
+
+            self?.record(chunk, stream: stream)
+        }
+    }
+
+    private func record(_ chunk: Data, stream: PipeStream) {
+        condition.lock()
+        defer { condition.unlock() }
+
+        if chunk.isEmpty {
+            completedStreams.insert(stream)
+            condition.broadcast()
+            return
+        }
+
+        switch stream {
+        case .stdout:
+            stdoutData.append(chunk)
+        case .stderr:
+            stderrData.append(chunk)
+        }
+    }
+
+    private enum PipeStream: Hashable, Sendable {
+        case stdout
+        case stderr
     }
 }

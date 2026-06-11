@@ -213,9 +213,9 @@ struct CcusageParserTests {
             },
             {
               "id": "b",
-              "startTime": "2026-05-16T15:00:00.000Z",
-              "endTime": "2026-05-16T20:00:00.000Z",
-              "actualEndTime": "2026-05-16T15:30:00.000Z",
+              "startTime": "2026-05-16T09:30:00.000Z",
+              "endTime": "2026-05-16T14:30:00.000Z",
+              "actualEndTime": "2026-05-16T10:00:00.000Z",
               "isActive": false
             },
             {
@@ -230,10 +230,15 @@ struct CcusageParserTests {
 
         let activity = try CcusageParser().parseBlocksJSON(json)
 
-        // Two non-gap blocks on 2026-05-16 (UTC): 2h + 0.5h = 2.5h. The gap is skipped.
-        let day = activity["2026-05-16"]
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let expectedDay = DateOnly.string(from: try #require(formatter.date(from: "2026-05-16T09:00:00.000Z")))
+        let skippedGapDay = DateOnly.string(from: try #require(formatter.date(from: "2026-05-17T00:00:00.000Z")))
+
+        // Two non-gap blocks on the local start day: 2h + 0.5h = 2.5h. The gap is skipped.
+        let day = activity[expectedDay]
         #expect(day != nil)
         #expect(abs((day ?? 0) - 9000) < 1) // 2.5 hours in seconds
-        #expect(activity["2026-05-17"] == nil)
+        #expect(activity[skippedGapDay] == nil)
     }
 }
