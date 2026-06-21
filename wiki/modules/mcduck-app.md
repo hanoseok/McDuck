@@ -4,7 +4,7 @@ title: McDuck App
 description: SwiftUI macOS menu bar target that renders usage data, settings, setup, and plugin controls.
 resource: https://github.com/hanoseok/McDuck/tree/develop/Sources/McDuck
 tags: [module, app, swiftui, menu-bar, settings]
-timestamp: 2026-06-21T10:32:14Z
+timestamp: 2026-06-21T13:46:58Z
 ---
 # Responsibility
 
@@ -16,7 +16,7 @@ timestamp: 2026-06-21T10:32:14Z
 * `SettingsStore` persists menu bar settings, login item state, Claude plugin install state, and manual update-check state surfaced from the main popover footer.
 * `PluginInstaller` integrates the bundled Claude Code plugin via CLI or `~/.claude/settings.json` fallback.
 * `AppUpdateService` checks the GitHub release channel for the installed build and opens the downloaded `.pkg` with macOS Installer.
-* `SetupView`, `SettingsView`, `MenuBarLabel`, `HeatmapGrid`, and `UsageDetailView` provide focused UI pieces. `SettingsView` keeps preferences, version/update controls, and the Quit action; the main popover footer keeps the ccusage updated time plus an icon-only usage reload action on the left, version on the right, and only exposes an Update action when an update is available.
+* `SetupView`, `SettingsView`, `MenuBarLabel`, `HeatmapGrid`, and `UsageDetailView` provide focused UI pieces. `SettingsView` keeps preferences, version/update controls, and the Quit action; its Version action is right-aligned and switches from Check for Updates to a blue Update install button when a release is available. The main popover footer keeps the ccusage updated time plus an icon-only usage reload action on the left, version on the right, and only exposes a blue Update action when an update is available.
 
 # Dependencies
 

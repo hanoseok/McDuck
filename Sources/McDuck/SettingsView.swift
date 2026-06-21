@@ -5,6 +5,34 @@ import SwiftUI
 struct SettingsView: View {
     @Bindable var settings: SettingsStore
 
+    @ViewBuilder
+    private var settingsUpdateAction: some View {
+        if let availableUpdate = settings.availableUpdate {
+            if settings.isInstallingUpdate {
+                EmptyView()
+            } else {
+                Button {
+                    Task { await settings.installAvailableUpdate() }
+                } label: {
+                    Label("Update", systemImage: "arrow.down.circle")
+                }
+                .mcDuckGlassButton(prominent: true)
+                .tint(.blue)
+                .controlSize(.small)
+                .help("Install McDuck \(availableUpdate.version.description)")
+            }
+        } else {
+            Button {
+                Task { await settings.checkForUpdates() }
+            } label: {
+                Label("Check for Updates", systemImage: "arrow.clockwise")
+            }
+            .mcDuckGlassButton()
+            .controlSize(.small)
+            .disabled(settings.isCheckingForUpdates || settings.isInstallingUpdate)
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Settings")
@@ -164,33 +192,11 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                HStack(spacing: 8) {
-                    Button {
-                        Task { await settings.checkForUpdates() }
-                    } label: {
-                        Label("Check for Updates", systemImage: "arrow.clockwise")
-                    }
-                    .mcDuckGlassButton()
-                    .controlSize(.small)
-                    .disabled(settings.isCheckingForUpdates || settings.isInstallingUpdate)
-
-                    if settings.isCheckingForUpdates {
-                        ProgressView().controlSize(.small)
-                    }
-                }
-
                 switch settings.updatePhase {
                 case .available(let release):
                     Text("McDuck \(release.version.description) is available.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Button {
-                        Task { await settings.installAvailableUpdate() }
-                    } label: {
-                        Label("Install Update", systemImage: "square.and.arrow.down")
-                    }
-                    .mcDuckGlassButton(prominent: true)
-                    .controlSize(.small)
                 case .installing:
                     HStack(spacing: 6) {
                         ProgressView().controlSize(.small)
@@ -210,6 +216,14 @@ struct SettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 case .idle, .checking:
                     EmptyView()
+                }
+
+                HStack(spacing: 8) {
+                    Spacer()
+                    settingsUpdateAction
+                    if settings.isCheckingForUpdates {
+                        ProgressView().controlSize(.small)
+                    }
                 }
             }
 
