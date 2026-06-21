@@ -53,9 +53,21 @@ final class SettingsStore {
         case failed(String)
     }
 
+    /// Progress of checking for, downloading, and opening an app update.
+    enum AppUpdatePhase: Equatable {
+        case idle
+        case checking
+        case upToDate(String)
+        case available(AppUpdateRelease)
+        case installing(AppUpdateRelease)
+        case installerOpened(String)
+        case failed(String)
+    }
+
     private let loginItem: any LoginItemControlling
     private let defaults: UserDefaults
     private let pluginInstaller: any PluginInstalling
+    private let appUpdater: any AppUpdating
     private static let menuBarPeriodKey = "menuBarPeriod"
     private static let menuBarMetricKey = "menuBarMetric"
 
@@ -78,20 +90,29 @@ final class SettingsStore {
     /// Whether the plugin currently looks registered/enabled in Claude Code.
     private(set) var isPluginInstalled = false
 
+    /// Current app version/channel as read from the installed bundle.
+    private(set) var currentAppVersion: InstalledAppVersion?
+
+    /// Progress of the Settings > Updates actions.
+    private(set) var updatePhase: AppUpdatePhase = .idle
+
     init(
         loginItem: any LoginItemControlling = SMAppServiceLoginItem(),
         defaults: UserDefaults = .standard,
-        pluginInstaller: any PluginInstalling = SettingsStore.defaultPluginInstaller()
+        pluginInstaller: any PluginInstalling = SettingsStore.defaultPluginInstaller(),
+        appUpdater: any AppUpdating = SettingsStore.defaultAppUpdater()
     ) {
         self.loginItem = loginItem
         self.defaults = defaults
         self.pluginInstaller = pluginInstaller
+        self.appUpdater = appUpdater
         self.loginItemState = loginItem.currentState()
         self.menuBarPeriod = defaults.string(forKey: Self.menuBarPeriodKey)
             .flatMap(MenuBarPeriod.init(rawValue:)) ?? .today
         self.menuBarMetric = defaults.string(forKey: Self.menuBarMetricKey)
             .flatMap(MenuBarMetric.init(rawValue:)) ?? .both
         self.isPluginInstalled = pluginInstaller.isInstalled()
+        self.currentAppVersion = appUpdater.currentInstalledVersion()
     }
 
     /// Builds the real installer: the `claude` CLI plus a settings.json fallback,
@@ -108,6 +129,10 @@ final class SettingsStore {
             settingsURL: settingsURL,
             fileIO: FileManagerSettingsIO()
         )
+    }
+
+    static func defaultAppUpdater() -> any AppUpdating {
+        AppUpdateService()
     }
 
     /// Whether login-item control is offered at all (hidden when unavailable,
@@ -166,6 +191,34 @@ final class SettingsStore {
         pluginInstallPhase == .installing
     }
 
+    var currentAppVersionText: String {
+        currentAppVersion?.description ?? "dev"
+    }
+
+    var currentAppUpdateChannelTitle: String {
+        currentAppVersion?.channel.title ?? "Development"
+    }
+
+    var isCheckingForUpdates: Bool {
+        updatePhase == .checking
+    }
+
+    var isInstallingUpdate: Bool {
+        if case .installing = updatePhase {
+            return true
+        }
+        return false
+    }
+
+    var availableUpdate: AppUpdateRelease? {
+        switch updatePhase {
+        case .available(let release), .installing(let release):
+            release
+        case .idle, .checking, .upToDate, .installerOpened, .failed:
+            nil
+        }
+    }
+
     /// Re-reads whether the plugin is registered/enabled. Call when the settings
     /// UI appears so a change made elsewhere is reflected.
     func refreshPluginInstalled() {
@@ -204,5 +257,32 @@ final class SettingsStore {
             pluginInstallPhase = .failed(message)
         }
         refreshPluginInstalled()
+    }
+
+    func checkForUpdates() async {
+        guard updatePhase != .checking, !isInstallingUpdate else { return }
+        currentAppVersion = appUpdater.currentInstalledVersion()
+        updatePhase = .checking
+
+        switch await appUpdater.checkForUpdate() {
+        case .available(_, let latest):
+            updatePhase = .available(latest)
+        case .upToDate(_, let latest):
+            updatePhase = .upToDate("McDuck \(latest.version.description) is up to date.")
+        case .failed(let message):
+            updatePhase = .failed(message)
+        }
+    }
+
+    func installAvailableUpdate() async {
+        guard case .available(let release) = updatePhase else { return }
+        updatePhase = .installing(release)
+
+        switch await appUpdater.installUpdate(release) {
+        case .openedInstaller:
+            updatePhase = .installerOpened("Installer opened. Follow the macOS prompts to finish updating.")
+        case .failed(let message):
+            updatePhase = .failed(message)
+        }
     }
 }

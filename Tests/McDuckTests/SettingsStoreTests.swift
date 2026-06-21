@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import McDuckCore
 @testable import McDuck
 
 /// Regression coverage for the settings layer: the menu-bar display preference
@@ -121,6 +122,15 @@ struct SettingsStoreTests {
         SettingsStore(loginItem: FakeLoginItem(), defaults: makeEphemeralDefaults(), pluginInstaller: installer)
     }
 
+    private func store(updater: FakeAppUpdater) -> SettingsStore {
+        SettingsStore(
+            loginItem: FakeLoginItem(),
+            defaults: makeEphemeralDefaults(),
+            pluginInstaller: FakePluginInstaller(),
+            appUpdater: updater
+        )
+    }
+
     @Test("installing via the settings fallback reports done")
     func installWroteSettings() async {
         let settings = store(installer: FakePluginInstaller(outcome: .wroteSettings(path: "/x/settings.json")))
@@ -160,5 +170,95 @@ struct SettingsStoreTests {
         let settings = store(installer: FakePluginInstaller(installed: true, uninstallOutcome: .failed(message: "boom")))
         await settings.uninstallPlugin()
         #expect(settings.pluginInstallPhase == .failed("boom"))
+    }
+
+    // MARK: - App updates
+
+    @Test("current update channel and version come from the updater")
+    func currentUpdateVersion() throws {
+        let current = try InstalledAppVersion("1.2.1-SNAPSHOT")
+        let settings = store(updater: FakeAppUpdater(
+            current: current,
+            checkResult: .failed("unused")
+        ))
+
+        #expect(settings.currentAppVersionText == "1.2.1-SNAPSHOT")
+        #expect(settings.currentAppUpdateChannelTitle == "Snapshot")
+    }
+
+    @Test("checking for updates reports an available release")
+    func checkReportsAvailableUpdate() async throws {
+        let current = try InstalledAppVersion("1.1")
+        let release = try updateRelease("1.2")
+        let updater = FakeAppUpdater(
+            current: current,
+            checkResult: .available(current: current, latest: release)
+        )
+        let settings = store(updater: updater)
+
+        await settings.checkForUpdates()
+
+        #expect(updater.checkCount == 1)
+        #expect(settings.updatePhase == .available(release))
+    }
+
+    @Test("checking for updates reports up to date")
+    func checkReportsUpToDate() async throws {
+        let current = try InstalledAppVersion("1.2")
+        let release = try updateRelease("1.2")
+        let settings = store(updater: FakeAppUpdater(
+            current: current,
+            checkResult: .upToDate(current: current, latest: release)
+        ))
+
+        await settings.checkForUpdates()
+
+        #expect(settings.updatePhase == .upToDate("McDuck 1.2 is up to date."))
+    }
+
+    @Test("checking for updates surfaces failures")
+    func checkFailure() async throws {
+        let settings = store(updater: FakeAppUpdater(
+            current: try InstalledAppVersion("1.2"),
+            checkResult: .failed("network down")
+        ))
+
+        await settings.checkForUpdates()
+
+        #expect(settings.updatePhase == .failed("network down"))
+    }
+
+    @Test("installing an available update opens the downloaded package")
+    func installAvailableUpdate() async throws {
+        let current = try InstalledAppVersion("1.1")
+        let release = try updateRelease("1.2")
+        let updater = FakeAppUpdater(
+            current: current,
+            checkResult: .available(current: current, latest: release),
+            installResult: .openedInstaller(URL(fileURLWithPath: "/tmp/McDuck.pkg"))
+        )
+        let settings = store(updater: updater)
+
+        await settings.checkForUpdates()
+        await settings.installAvailableUpdate()
+
+        #expect(updater.installCount == 1)
+        #expect(settings.updatePhase == .installerOpened("Installer opened. Follow the macOS prompts to finish updating."))
+    }
+
+    private func updateRelease(_ version: String) throws -> AppUpdateRelease {
+        try AppUpdateRelease.githubRelease(
+            data: Data("""
+            {
+              "tag_name": "\(version)",
+              "name": "McDuck-\(version)",
+              "prerelease": false,
+              "assets": [
+                {"name":"McDuck.pkg","browser_download_url":"https://example.com/McDuck.pkg"}
+              ]
+            }
+            """.utf8),
+            expectedChannel: .release
+        )
     }
 }

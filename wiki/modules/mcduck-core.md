@@ -1,9 +1,9 @@
 ---
 type: Module
 title: McDuck Core
-description: Testable Swift core for Bun discovery, ccusage execution, parsing, dependency checks, and heatmap construction.
+description: Testable Swift core for Bun discovery, ccusage execution, parsing, dependency checks, update checks, and heatmap construction.
 resource: https://github.com/hanoseok/McDuck/tree/develop/Sources/McDuckCore
-tags: [module, core, ccusage, parser, heatmap, dependency]
+tags: [module, core, ccusage, parser, heatmap, dependency, update]
 timestamp: 2026-06-21T06:44:10Z
 ---
 # Responsibility
@@ -19,6 +19,7 @@ timestamp: 2026-06-21T06:44:10Z
 | `CcusageParser.swift` | Tolerantly parses daily usage, model breakdowns, totals, and active blocks. |
 | `HeatmapBuilder.swift` | Builds rolling/year heatmap cells. |
 | `Models.swift` | Shared usage report/value models. |
+| `AppUpdate.swift` | Parses app versions and GitHub release payloads, separates Release/Snapshot channels, and evaluates update availability. |
 
 # Current Note
 

@@ -1,4 +1,5 @@
 import Foundation
+import McDuckCore
 @testable import McDuck
 
 /// In-memory `LoginItemControlling` used to drive `SettingsStore` without
@@ -43,6 +44,40 @@ struct FakePluginInstaller: PluginInstalling {
     func install() async -> PluginInstallOutcome { outcome }
     func isInstalled() -> Bool { installed }
     func uninstall() async -> PluginUninstallOutcome { uninstallOutcome }
+}
+
+/// Fixed update outcomes so `SettingsStore` can be tested without network or
+/// opening macOS Installer.
+final class FakeAppUpdater: AppUpdating, @unchecked Sendable {
+    var current: InstalledAppVersion?
+    var checkResult: AppUpdateCheckResult
+    var installResult: AppUpdateInstallResult
+    private(set) var checkCount = 0
+    private(set) var installCount = 0
+
+    init(
+        current: InstalledAppVersion?,
+        checkResult: AppUpdateCheckResult,
+        installResult: AppUpdateInstallResult = .failed("not configured")
+    ) {
+        self.current = current
+        self.checkResult = checkResult
+        self.installResult = installResult
+    }
+
+    func currentInstalledVersion() -> InstalledAppVersion? {
+        current
+    }
+
+    func checkForUpdate() async -> AppUpdateCheckResult {
+        checkCount += 1
+        return checkResult
+    }
+
+    func installUpdate(_ release: AppUpdateRelease) async -> AppUpdateInstallResult {
+        installCount += 1
+        return installResult
+    }
 }
 
 /// A throwaway, isolated UserDefaults so settings tests never read or write the
