@@ -219,17 +219,23 @@ struct McDuckPopover: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
+            if let lastUpdated = store.lastUpdated {
+                Text("Updated \(lastUpdated.formatted(date: .omitted, time: .shortened))")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
             Button {
-                Task { await refreshFooter() }
+                Task { await store.refresh(quiet: true) }
             } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")
             }
             .mcDuckGlassButton()
             .controlSize(.small)
-            .disabled(store.isInstalling || store.isRefreshing || settings.isCheckingForUpdates || settings.isInstallingUpdate)
-            .help("Refresh usage and check for updates")
+            .disabled(store.isInstalling || store.isRefreshing)
+            .help("Refresh usage")
 
-            if store.isRefreshing || settings.isCheckingForUpdates {
+            if store.isRefreshing {
                 ProgressView()
                     .controlSize(.small)
             }
@@ -242,11 +248,6 @@ struct McDuckPopover: View {
 
             updateFooterButton
         }
-    }
-
-    private func refreshFooter() async {
-        await store.refresh(quiet: true)
-        await settings.checkForUpdates()
     }
 
     @ViewBuilder
