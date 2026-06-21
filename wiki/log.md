@@ -1,6 +1,7 @@
 # McDuck Wiki Update Log
 
 ## 2026-06-21
+* **UX adjustment**: Simplified the popover footer so Refresh is the left action, while the right side shows the app version and only reveals Update when a release is available.
 * **UX adjustment**: Moved Quit into the Settings panel and moved update controls to the main popover footer's lower-right action area.
 * **Feature**: Added planning/implementation notes for settings-driven app updates: Release builds check official `releases/latest`, Snapshot builds check `snapshot-latest`, and installation opens the channel-matched `.pkg` with macOS Installer.
 * **Initialization**: Created the OKF-style `wiki/` bundle for McDuck project knowledge.
