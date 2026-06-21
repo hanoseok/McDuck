@@ -18,6 +18,7 @@ timestamp: 2026-06-21T06:44:10Z
 | `Tests/McDuckCoreTests` | parser, dependency, command, heatmap tests | [McDuck Core](/modules/mcduck-core.md) |
 | `Tests/McDuckMCPTests` | JSON-RPC and MCP handler/tool tests | [McDuck MCP](/modules/mcduck-mcp.md) |
 | `plugin/` | Claude Code plugin bundle | [Claude Plugin](/modules/claude-plugin.md) |
+| `skills/` | Repository-owned Codex workflow skills with thin installed pointers | [Codex Skills](/modules/codex-skills.md) |
 | `scripts/` | app build and installer scripts | [Build, Test, Release Runbook](/runbooks/build-test-release.md) |
 | `.github/workflows/` | CI, release, snapshot, cut bridge | [Release Pipeline](/architecture/release-pipeline.md) |
 | `docs/` | legacy/planning/build docs | [Build, Test, Release Runbook](/runbooks/build-test-release.md) |

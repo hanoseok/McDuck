@@ -1,0 +1,4 @@
+interface:
+  display_name: "McDuck Start"
+  short_description: "Plan McDuck issue work from GitHub and wiki"
+  default_prompt: "Use $mcduck-start to start planning for McDuck GitHub issue 45."

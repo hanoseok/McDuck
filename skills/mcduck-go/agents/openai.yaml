@@ -1,0 +1,4 @@
+interface:
+  display_name: "McDuck Go"
+  short_description: "Implement McDuck planned GitHub issue work"
+  default_prompt: "Use $mcduck-go to implement the planned McDuck GitHub issue work."

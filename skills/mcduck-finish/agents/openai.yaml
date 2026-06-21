@@ -1,0 +1,4 @@
+interface:
+  display_name: "McDuck Finish"
+  short_description: "Finish McDuck issue branches and snapshots"
+  default_prompt: "Use $mcduck-finish to finish the current McDuck issue branch."
