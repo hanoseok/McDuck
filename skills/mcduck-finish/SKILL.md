@@ -5,7 +5,7 @@ description: Use when the user invokes "/McDuck:finish", "/mcduck:finish", or as
 
 # McDuck Finish
 
-Use this skill to finish a McDuck issue after `/McDuck:go` has produced `개발완료`. It verifies the final branch, pushes remaining work, merges the feature branch to `develop`, writes wiki task cleanup, pushes wiki changes, removes the feature worktree/branches, creates a develop snapshot, reports install shell commands, and sets the session title to `(완)`.
+Use this skill to finish a McDuck issue after `/McDuck:go` has produced `개발완료`. It verifies the final branch, pushes remaining work, merges the feature branch to `develop`, writes wiki task cleanup, pushes wiki changes, removes the feature worktree/branches, creates a develop snapshot, closes the GitHub issue, reports install shell commands, and sets the session title to `(완)`.
 
 ## Issue Key Discovery
 
@@ -25,6 +25,7 @@ If zero or conflicting issue numbers are found, stop and ask for the issue numbe
 - Never edit the `original` block between `<!-- mcduck:original:start -->` and `<!-- mcduck:original:end -->`.
 - Only rewrite the Codex managed summary between `<!-- mcduck:codex-summary:start -->` and `<!-- mcduck:codex-summary:end -->`.
 - Do not remove the feature worktree or local/remote branches until the feature PR is merged into `develop` and wiki changes have been pushed.
+- Do not close the GitHub issue until the final required merge is complete, wiki cleanup is pushed, snapshot is confirmed, and the final Codex managed summary is written.
 - Do not use destructive cleanup commands if uncommitted or unpushed work remains.
 - Stop and report blockers for failed checks, merge conflicts, permission errors, or ambiguous branch state.
 
@@ -243,6 +244,16 @@ curl -fsSL https://github.com/hanoseok/McDuck/releases/download/snapshot-latest/
 curl -fsSL https://github.com/hanoseok/McDuck/releases/download/<next-version>/install-snapshot.sh | bash
 ```
 
+## Close GitHub Issue
+
+After the final required merge into `develop`, wiki cleanup push, develop snapshot confirmation, and final Codex managed summary update, close the GitHub issue:
+
+```bash
+gh issue close "$ISSUE_NUMBER" --repo "$REPO" --comment "완료: develop 반영, wiki 정리, snapshot <next-version> 확인."
+```
+
+If close fails because of permissions or API errors, keep the session title and managed summary accurate, report the blocker, and do not claim the issue is closed.
+
 ## Issue Summary And Completion
 
 After snapshot is confirmed:
@@ -250,7 +261,8 @@ After snapshot is confirmed:
 1. Rewrite only the Codex managed summary block.
 2. Preserve `original` unchanged.
 3. Set status to `완료`.
-4. Set final session title to `(완)McDuck-<number>: {GitHub issue title}`.
+4. Close the GitHub issue after the summary update.
+5. Set final session title to `(완)McDuck-<number>: {GitHub issue title}`.
 
 Managed summary shape:
 
@@ -265,6 +277,7 @@ Managed summary shape:
 - wiki 정리:
 - feature 정리:
 - snapshot:
+- GitHub issue close: 성공 또는 실패/확인불가(사유)
 - 설치:
   - 최신: curl -fsSL https://github.com/hanoseok/McDuck/releases/download/snapshot-latest/install-snapshot.sh | bash
   - 특정: curl -fsSL https://github.com/hanoseok/McDuck/releases/download/<version>/install-snapshot.sh | bash
@@ -276,6 +289,7 @@ Managed summary shape:
   - [x] wiki 정리 push
   - [x] feature branch/worktree 정리
   - [x] develop snapshot
+  - [x] GitHub issue close
   - [x] 완료
 ```
 
@@ -287,4 +301,5 @@ Final report to the user:
 - snapshot version
 - install shell commands
 - branch/worktree cleanup result
+- GitHub issue close result
 - status `완료`
