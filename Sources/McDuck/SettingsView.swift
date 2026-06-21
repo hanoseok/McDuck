@@ -100,6 +100,57 @@ struct SettingsView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 6) {
+                Text("Claude Code plugin")
+                    .font(.subheadline)
+                Text("Register McDuck's MCP server + usage skill in Claude Code.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 8) {
+                    if settings.isPluginInstalled {
+                        Button {
+                            Task { await settings.uninstallPlugin() }
+                        } label: {
+                            Label("Remove from Claude Code", systemImage: "trash")
+                        }
+                        .mcDuckGlassButton()
+                        .controlSize(.small)
+                        .disabled(settings.isInstallingPlugin)
+                    } else {
+                        Button {
+                            Task { await settings.installPlugin() }
+                        } label: {
+                            Label("Add to Claude Code", systemImage: "puzzlepiece.extension")
+                        }
+                        .mcDuckGlassButton()
+                        .controlSize(.small)
+                        .disabled(settings.isInstallingPlugin)
+                    }
+
+                    if settings.isInstallingPlugin {
+                        ProgressView().controlSize(.small)
+                    }
+                }
+
+                switch settings.pluginInstallPhase {
+                case .done(let message):
+                    Text(message)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                case .failed(let message):
+                    Text(message)
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                case .idle, .installing:
+                    EmptyView()
+                }
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 6) {
                 Text("Updates")
                     .font(.subheadline)
 
@@ -158,57 +209,6 @@ struct SettingsView: View {
                         .foregroundStyle(.red)
                         .fixedSize(horizontal: false, vertical: true)
                 case .idle, .checking:
-                    EmptyView()
-                }
-            }
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Claude Code plugin")
-                    .font(.subheadline)
-                Text("Register McDuck's MCP server + usage skill in Claude Code.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 8) {
-                    if settings.isPluginInstalled {
-                        Button {
-                            Task { await settings.uninstallPlugin() }
-                        } label: {
-                            Label("Remove from Claude Code", systemImage: "trash")
-                        }
-                        .mcDuckGlassButton()
-                        .controlSize(.small)
-                        .disabled(settings.isInstallingPlugin)
-                    } else {
-                        Button {
-                            Task { await settings.installPlugin() }
-                        } label: {
-                            Label("Add to Claude Code", systemImage: "puzzlepiece.extension")
-                        }
-                        .mcDuckGlassButton()
-                        .controlSize(.small)
-                        .disabled(settings.isInstallingPlugin)
-                    }
-
-                    if settings.isInstallingPlugin {
-                        ProgressView().controlSize(.small)
-                    }
-                }
-
-                switch settings.pluginInstallPhase {
-                case .done(let message):
-                    Text(message)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                case .failed(let message):
-                    Text(message)
-                        .font(.caption2)
-                        .foregroundStyle(.red)
-                        .fixedSize(horizontal: false, vertical: true)
-                case .idle, .installing:
                     EmptyView()
                 }
             }
