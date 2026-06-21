@@ -93,7 +93,7 @@ final class SettingsStore {
     /// Current app version/channel as read from the installed bundle.
     private(set) var currentAppVersion: InstalledAppVersion?
 
-    /// Progress of the Settings > Updates actions.
+    /// Progress of the main popover Updates actions.
     private(set) var updatePhase: AppUpdatePhase = .idle
 
     init(

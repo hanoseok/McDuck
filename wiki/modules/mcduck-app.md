@@ -13,10 +13,10 @@ timestamp: 2026-06-21T06:44:10Z
 * `McDuckApp` wires `MenuBarExtra`, `UsageStore`, and `SettingsStore`.
 * `McDuckPopover` renders dashboard, controls, chart, heatmap, detail view, footer, and settings popover.
 * `UsageStore` is the main observable state machine for dependency checks, usage loading, auto-refresh, and activity loading.
-* `SettingsStore` persists menu bar settings, login item state, Claude plugin install state, and manual update-check state.
+* `SettingsStore` persists menu bar settings, login item state, Claude plugin install state, and manual update-check state surfaced from the main popover footer.
 * `PluginInstaller` integrates the bundled Claude Code plugin via CLI or `~/.claude/settings.json` fallback.
 * `AppUpdateService` checks the GitHub release channel for the installed build and opens the downloaded `.pkg` with macOS Installer.
-* `SetupView`, `SettingsView`, `MenuBarLabel`, `HeatmapGrid`, and `UsageDetailView` provide focused UI pieces.
+* `SetupView`, `SettingsView`, `MenuBarLabel`, `HeatmapGrid`, and `UsageDetailView` provide focused UI pieces. `SettingsView` keeps preferences and the Quit action; update checks stay on the main popover footer.
 
 # Dependencies
 
@@ -27,4 +27,4 @@ timestamp: 2026-06-21T06:44:10Z
 
 # Testing
 
-Relevant tests live in `Tests/McDuckTests`, including plugin installer, settings store, app update service, and menu bar usage behavior.
+Relevant tests live in `Tests/McDuckTests`, including plugin installer, settings store, app update service, menu bar usage behavior, and source layout guards for Settings/main footer controls.

@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Compact settings panel shown from the header gear button. Holds the
-/// launch-at-login toggle today; future preferences slot in below it.
+/// Compact settings panel shown from the header gear button. Holds preferences
+/// and app-level actions that do not need to stay on the main popover.
 struct SettingsView: View {
     @Bindable var settings: SettingsStore
 
@@ -150,67 +150,16 @@ struct SettingsView: View {
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Updates")
-                    .font(.subheadline)
-
-                HStack {
-                    Text("Current")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(settings.currentAppVersionText) · \(settings.currentAppUpdateChannelTitle)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+            HStack {
+                Spacer()
+                Button {
+                    NSApplication.shared.terminate(nil)
+                } label: {
+                    Label("Quit", systemImage: "power")
                 }
-
-                HStack(spacing: 8) {
-                    Button {
-                        Task { await settings.checkForUpdates() }
-                    } label: {
-                        Label("Check for Updates", systemImage: "arrow.clockwise")
-                    }
-                    .mcDuckGlassButton()
-                    .controlSize(.small)
-                    .disabled(settings.isCheckingForUpdates || settings.isInstallingUpdate)
-
-                    if settings.isCheckingForUpdates {
-                        ProgressView().controlSize(.small)
-                    }
-                }
-
-                switch settings.updatePhase {
-                case .available(let release):
-                    Text("McDuck \(release.version.description) is available.")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Button {
-                        Task { await settings.installAvailableUpdate() }
-                    } label: {
-                        Label("Install Update", systemImage: "square.and.arrow.down")
-                    }
-                    .mcDuckGlassButton(prominent: true)
-                    .controlSize(.small)
-                case .installing:
-                    HStack(spacing: 6) {
-                        ProgressView().controlSize(.small)
-                        Text("Preparing installer...")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                case .upToDate(let message), .installerOpened(let message):
-                    Text(message)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                case .failed(let message):
-                    Text(message)
-                        .font(.caption2)
-                        .foregroundStyle(.red)
-                        .fixedSize(horizontal: false, vertical: true)
-                case .idle, .checking:
-                    EmptyView()
-                }
+                .mcDuckGlassButton()
+                .controlSize(.small)
+                .help("Quit McDuck")
             }
         }
         .padding(14)
