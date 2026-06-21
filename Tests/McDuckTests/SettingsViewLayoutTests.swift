@@ -61,6 +61,16 @@ struct SettingsViewLayoutTests {
         #expect(!footer.contains(#"Label("Quit", systemImage: "power")"#))
     }
 
+    @Test("menu bar label starts background usage refresh and update checks")
+    func menuBarLabelStartsBackgroundUsageRefreshAndUpdateChecks() throws {
+        let source = try String(contentsOf: mcDuckAppURL(), encoding: .utf8)
+        let label = try menuBarLabelSource(in: source)
+
+        #expect(label.contains("MenuBarLabel(store: store, settings: settings)"))
+        #expect(label.contains("store.startAutoRefresh()"))
+        #expect(label.contains("settings.startAutoUpdateChecks()"))
+    }
+
     private func settingsViewURL() -> URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -75,6 +85,14 @@ struct SettingsViewLayoutTests {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .appendingPathComponent("Sources/McDuck/McDuckPopover.swift")
+    }
+
+    private func mcDuckAppURL() -> URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Sources/McDuck/McDuckApp.swift")
     }
 
     private func footerSource(in source: String) throws -> Substring {
@@ -96,5 +114,12 @@ struct SettingsViewLayoutTests {
         let bodyEnd = try #require(source.range(of: "        .padding(14)"))
 
         return source[actionStart.lowerBound..<bodyEnd.lowerBound]
+    }
+
+    private func menuBarLabelSource(in source: String) throws -> Substring {
+        let labelStart = try #require(source.range(of: "} label: {"))
+        let styleStart = try #require(source.range(of: ".menuBarExtraStyle(.window)"))
+
+        return source[labelStart.lowerBound..<styleStart.lowerBound]
     }
 }
