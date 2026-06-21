@@ -3,12 +3,18 @@ import Testing
 
 @Suite("settings view layout")
 struct SettingsViewLayoutTests {
-    @Test("settings hosts quit instead of updates")
-    func settingsHostsQuitInsteadOfUpdates() throws {
+    @Test("settings shows version and update controls above quit")
+    func settingsShowsVersionAndUpdateControlsAboveQuit() throws {
         let source = try String(contentsOf: settingsViewURL(), encoding: .utf8)
+        let versionSection = try #require(source.range(of: #"Text("Version")"#))
+        let checkForUpdates = try #require(source.range(of: #"Label("Check for Updates", systemImage: "arrow.clockwise")"#))
+        let quit = try #require(source.range(of: #"Label("Quit", systemImage: "power")"#))
 
-        #expect(source.contains(#"Label("Quit", systemImage: "power")"#))
-        #expect(!source.contains(#"Text("Updates")"#))
+        #expect(versionSection.lowerBound < checkForUpdates.lowerBound)
+        #expect(checkForUpdates.lowerBound < quit.lowerBound)
+        #expect(source.contains("settings.currentAppVersionText"))
+        #expect(source.contains("settings.currentAppUpdateChannelTitle"))
+        #expect(source.contains("settings.checkForUpdates()"))
     }
 
     @Test("main popover footer shows refresh on the left and update only when available")
