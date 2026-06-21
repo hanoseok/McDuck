@@ -246,14 +246,71 @@ struct McDuckPopover: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
+            if let message = updateFooterMessage {
+                Text(message)
+                    .font(.caption2)
+                    .foregroundStyle(updateFooterMessageIsError ? .red : .secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: 150, alignment: .trailing)
+            }
+
+            if settings.isCheckingForUpdates || settings.isInstallingUpdate {
+                ProgressView()
+                    .controlSize(.small)
+            }
+
+            updateFooterButton
+        }
+    }
+
+    private var updateFooterMessage: String? {
+        switch settings.updatePhase {
+        case .idle:
+            nil
+        case .checking:
+            "Checking"
+        case .upToDate:
+            "Up to date"
+        case .available(let release):
+            "\(release.version.description) available"
+        case .installing:
+            "Preparing installer"
+        case .installerOpened:
+            "Installer opened"
+        case .failed:
+            "Update failed"
+        }
+    }
+
+    private var updateFooterMessageIsError: Bool {
+        if case .failed = settings.updatePhase {
+            return true
+        }
+        return false
+    }
+
+    @ViewBuilder
+    private var updateFooterButton: some View {
+        if settings.availableUpdate != nil, !settings.isInstallingUpdate {
             Button {
-                NSApplication.shared.terminate(nil)
+                Task { await settings.installAvailableUpdate() }
             } label: {
-                Label("Quit", systemImage: "power")
+                Label("Install Update", systemImage: "square.and.arrow.down")
+            }
+            .mcDuckGlassButton(prominent: true)
+            .controlSize(.small)
+            .help("Install McDuck update")
+        } else {
+            Button {
+                Task { await settings.checkForUpdates() }
+            } label: {
+                Label("Updates", systemImage: "arrow.down.circle")
             }
             .mcDuckGlassButton()
             .controlSize(.small)
-            .help("Quit McDuck")
+            .disabled(settings.isCheckingForUpdates || settings.isInstallingUpdate)
+            .help("Check for updates")
         }
     }
 
@@ -528,4 +585,3 @@ private struct YearSelector: View {
         }
     }
 }
-
