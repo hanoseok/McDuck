@@ -131,6 +131,19 @@ struct SettingsStoreTests {
         )
     }
 
+    private func store(
+        updater: FakeAppUpdater,
+        updateCheckSleep: @escaping @Sendable (Duration) async throws -> Void
+    ) -> SettingsStore {
+        SettingsStore(
+            loginItem: FakeLoginItem(),
+            defaults: makeEphemeralDefaults(),
+            pluginInstaller: FakePluginInstaller(),
+            appUpdater: updater,
+            updateCheckSleep: updateCheckSleep
+        )
+    }
+
     @Test("installing via the settings fallback reports done")
     func installWroteSettings() async {
         let settings = store(installer: FakePluginInstaller(outcome: .wroteSettings(path: "/x/settings.json")))
@@ -246,6 +259,29 @@ struct SettingsStoreTests {
         #expect(settings.updatePhase == .installerOpened("Installer opened. Follow the macOS prompts to finish updating."))
     }
 
+    @Test("automatic update checks run immediately then wait ten minutes and start only once")
+    func automaticUpdateChecksRunImmediatelyThenWaitTenMinutesAndStartOnlyOnce() async throws {
+        let current = try InstalledAppVersion("1.2")
+        let release = try updateRelease("1.2")
+        let updater = FakeAppUpdater(
+            current: current,
+            checkResult: .upToDate(current: current, latest: release)
+        )
+        let sleepProbe = AutoUpdateSleepProbe()
+        let settings = store(updater: updater, updateCheckSleep: sleepProbe.sleep)
+
+        settings.startAutoUpdateChecks()
+        let didStart = await eventually {
+            await sleepProbe.durations == [.seconds(600)]
+        }
+        settings.startAutoUpdateChecks()
+        await Task.yield()
+
+        #expect(didStart)
+        #expect(updater.checkCount == 1)
+        #expect(await sleepProbe.durations == [.seconds(600)])
+    }
+
     private func updateRelease(_ version: String) throws -> AppUpdateRelease {
         try AppUpdateRelease.githubRelease(
             data: Data("""
@@ -261,4 +297,23 @@ struct SettingsStoreTests {
             expectedChannel: .release
         )
     }
+}
+
+private actor AutoUpdateSleepProbe {
+    private(set) var durations: [Duration] = []
+
+    func sleep(_ duration: Duration) async throws {
+        durations.append(duration)
+        throw CancellationError()
+    }
+}
+
+private func eventually(_ condition: @escaping @Sendable () async -> Bool) async -> Bool {
+    for _ in 0..<50 {
+        if await condition() {
+            return true
+        }
+        try? await Task.sleep(for: .milliseconds(1))
+    }
+    return false
 }

@@ -1,6 +1,7 @@
 # McDuck Wiki Update Log
 
 ## 2026-06-21
+* **Feature**: Added a launch-started automatic app update check loop that repeats every 10 minutes from the always-present menu-bar label task.
 * **UX adjustment**: Right-aligned the Settings update check action and switched available updates to blue Update install buttons in Settings and the main footer.
 * **UX adjustment**: Removed the visible usage reload text from the main footer action, leaving the ccusage updated time plus an icon-only control.
 * **UX adjustment**: Restored the footer's last ccusage refresh time and kept its reload action scoped to usage data only.

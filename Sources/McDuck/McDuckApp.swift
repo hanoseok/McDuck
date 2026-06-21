@@ -21,7 +21,10 @@ struct McDuckApp: App {
             // pulled at launch — the menu-bar numbers are ready without opening
             // the popover.
             MenuBarLabel(store: store, settings: settings)
-                .task { store.startAutoRefresh() }
+                .task {
+                    store.startAutoRefresh()
+                    settings.startAutoUpdateChecks()
+                }
         }
         .menuBarExtraStyle(.window)
     }

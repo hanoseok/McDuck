@@ -68,6 +68,8 @@ final class SettingsStore {
     private let defaults: UserDefaults
     private let pluginInstaller: any PluginInstalling
     private let appUpdater: any AppUpdating
+    @ObservationIgnored private let updateCheckSleep: @Sendable (Duration) async throws -> Void
+    @ObservationIgnored private var autoUpdateCheckTask: Task<Void, Never>?
     private static let menuBarPeriodKey = "menuBarPeriod"
     private static let menuBarMetricKey = "menuBarMetric"
 
@@ -100,12 +102,14 @@ final class SettingsStore {
         loginItem: any LoginItemControlling = SMAppServiceLoginItem(),
         defaults: UserDefaults = .standard,
         pluginInstaller: any PluginInstalling = SettingsStore.defaultPluginInstaller(),
-        appUpdater: any AppUpdating = SettingsStore.defaultAppUpdater()
+        appUpdater: any AppUpdating = SettingsStore.defaultAppUpdater(),
+        updateCheckSleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     ) {
         self.loginItem = loginItem
         self.defaults = defaults
         self.pluginInstaller = pluginInstaller
         self.appUpdater = appUpdater
+        self.updateCheckSleep = updateCheckSleep
         self.loginItemState = loginItem.currentState()
         self.menuBarPeriod = defaults.string(forKey: Self.menuBarPeriodKey)
             .flatMap(MenuBarPeriod.init(rawValue:)) ?? .today
@@ -259,8 +263,48 @@ final class SettingsStore {
         refreshPluginInstalled()
     }
 
-    func checkForUpdates() async {
+    /// Starts a long-lived loop that checks the app's release channel at launch,
+    /// then every ten minutes. The store owns the task so it keeps running while
+    /// the popover is closed.
+    func startAutoUpdateChecks(interval: Duration = .seconds(600)) {
+        guard autoUpdateCheckTask == nil else {
+            return
+        }
+
+        autoUpdateCheckTask = Task { [weak self] in
+            await self?.runAutoUpdateChecks(interval: interval)
+        }
+    }
+
+    private func runAutoUpdateChecks(interval: Duration) async {
+        await checkForUpdates(automatic: true)
+
+        while !Task.isCancelled {
+            do {
+                try await updateCheckSleep(interval)
+            } catch {
+                break
+            }
+
+            guard !Task.isCancelled else {
+                break
+            }
+
+            await checkForUpdates(automatic: true)
+        }
+    }
+
+    func checkForUpdates(automatic: Bool = false) async {
         guard updatePhase != .checking, !isInstallingUpdate else { return }
+        if automatic {
+            switch updatePhase {
+            case .available, .installing, .installerOpened:
+                return
+            case .idle, .checking, .upToDate, .failed:
+                break
+            }
+        }
+
         currentAppVersion = appUpdater.currentInstalledVersion()
         updatePhase = .checking
 
