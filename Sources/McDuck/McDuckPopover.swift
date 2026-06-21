@@ -264,6 +264,7 @@ struct McDuckPopover: View {
                     Label("Update", systemImage: "arrow.down.circle")
                 }
                 .mcDuckGlassButton(prominent: true)
+                .tint(.blue)
                 .controlSize(.small)
                 .help("Install McDuck \(availableUpdate.version.description)")
             }
