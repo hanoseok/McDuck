@@ -3,6 +3,7 @@
 Use this directory for status snapshots and development progress notes.
 
 * [2026-06-21 OKF Wiki Foundation](2026-06-21-okf-wiki-foundation.md) - Initial wiki structure and repository baseline.
+* [2026-06-22 Issue 45 Automatic Update Completion](2026-06-22-mcduck-45-auto-update-completion.md) - Completion cleanup for the Settings and footer update-check workflow.
 
 # How to Add Progress
 

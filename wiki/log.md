@@ -1,5 +1,8 @@
 # McDuck Wiki Update Log
 
+## 2026-06-22
+* **Completion**: Added a progress report for issue #45 covering the automatic update check workflow, final feature verification, merged PR, and snapshot evidence.
+
 ## 2026-06-21
 * **Feature**: Added a launch-started automatic app update check loop that repeats every 10 minutes from the always-present menu-bar label task.
 * **UX adjustment**: Right-aligned the Settings update check action and switched available updates to blue Update install buttons in Settings and the main footer.
