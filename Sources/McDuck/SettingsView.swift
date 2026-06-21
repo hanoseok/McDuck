@@ -100,6 +100,71 @@ struct SettingsView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 6) {
+                Text("Updates")
+                    .font(.subheadline)
+
+                HStack {
+                    Text("Current")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(settings.currentAppVersionText) · \(settings.currentAppUpdateChannelTitle)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: 8) {
+                    Button {
+                        Task { await settings.checkForUpdates() }
+                    } label: {
+                        Label("Check for Updates", systemImage: "arrow.clockwise")
+                    }
+                    .mcDuckGlassButton()
+                    .controlSize(.small)
+                    .disabled(settings.isCheckingForUpdates || settings.isInstallingUpdate)
+
+                    if settings.isCheckingForUpdates {
+                        ProgressView().controlSize(.small)
+                    }
+                }
+
+                switch settings.updatePhase {
+                case .available(let release):
+                    Text("McDuck \(release.version.description) is available.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Button {
+                        Task { await settings.installAvailableUpdate() }
+                    } label: {
+                        Label("Install Update", systemImage: "square.and.arrow.down")
+                    }
+                    .mcDuckGlassButton(prominent: true)
+                    .controlSize(.small)
+                case .installing:
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.small)
+                        Text("Preparing installer...")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                case .upToDate(let message), .installerOpened(let message):
+                    Text(message)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                case .failed(let message):
+                    Text(message)
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                case .idle, .checking:
+                    EmptyView()
+                }
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 6) {
                 Text("Claude Code plugin")
                     .font(.subheadline)
                 Text("Register McDuck's MCP server + usage skill in Claude Code.")
@@ -149,7 +214,7 @@ struct SettingsView: View {
             }
         }
         .padding(14)
-        .frame(width: 260, alignment: .leading)
+        .frame(width: 300, alignment: .leading)
         .onAppear {
             settings.refreshLoginItemState()
             settings.refreshPluginInstalled()
