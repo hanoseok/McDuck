@@ -228,12 +228,13 @@ struct McDuckPopover: View {
             Button {
                 Task { await store.refresh(quiet: true) }
             } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
+                Image(systemName: "arrow.clockwise")
             }
             .mcDuckGlassButton()
             .controlSize(.small)
             .disabled(store.isInstalling || store.isRefreshing)
-            .help("Refresh usage")
+            .help("Reload usage")
+            .accessibilityLabel("Reload usage")
 
             if store.isRefreshing {
                 ProgressView()

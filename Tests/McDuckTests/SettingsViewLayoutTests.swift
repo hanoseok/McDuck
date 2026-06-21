@@ -17,17 +17,21 @@ struct SettingsViewLayoutTests {
         #expect(source.contains("settings.checkForUpdates()"))
     }
 
-    @Test("main popover footer shows ccusage refresh time and update only when available")
-    func mainPopoverFooterShowsCcusageRefreshTimeAndAvailableUpdateOnly() throws {
+    @Test("main popover footer shows ccusage time icon action and update only when available")
+    func mainPopoverFooterShowsCcusageTimeIconActionAndAvailableUpdateOnly() throws {
         let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
         let footer = try footerSource(in: source)
+        let oldVisibleLabel = "Re" + "fresh"
+        let oldHelpText = oldVisibleLabel + " usage"
 
         #expect(footer.contains("Text(\"Updated \\("))
         #expect(footer.contains("lastUpdated.formatted(date: .omitted, time: .shortened)"))
-        #expect(footer.contains(#"Label("Refresh", systemImage: "arrow.clockwise")"#))
+        #expect(footer.contains(#"Image(systemName: "arrow.clockwise")"#))
+        #expect(!footer.contains(#"Label("\#(oldVisibleLabel)", systemImage: "arrow.clockwise")"#))
         #expect(footer.contains("await store.refresh(quiet: true)"))
         #expect(!footer.contains("settings.checkForUpdates()"))
-        #expect(footer.contains(#".help("Refresh usage")"#))
+        #expect(footer.contains(#".help("Reload usage")"#))
+        #expect(!footer.contains(#".help("\#(oldHelpText)")"#))
         #expect(footer.contains("Text(Self.appVersion)"))
         #expect(footer.contains("if let availableUpdate = settings.availableUpdate"))
         #expect(footer.contains(#"Label("Update", systemImage: "arrow.down.circle")"#))
