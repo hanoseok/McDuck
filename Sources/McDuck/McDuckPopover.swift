@@ -219,23 +219,17 @@ struct McDuckPopover: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            if let lastUpdated = store.lastUpdated {
-                Text("Updated \(lastUpdated.formatted(date: .omitted, time: .shortened))")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-
             Button {
-                Task { await store.refresh(quiet: true) }
+                Task { await refreshFooter() }
             } label: {
-                Image(systemName: "arrow.clockwise")
+                Label("Refresh", systemImage: "arrow.clockwise")
             }
             .mcDuckGlassButton()
             .controlSize(.small)
-            .disabled(store.isInstalling || store.isRefreshing)
-            .help("Refresh")
+            .disabled(store.isInstalling || store.isRefreshing || settings.isCheckingForUpdates || settings.isInstallingUpdate)
+            .help("Refresh usage and check for updates")
 
-            if store.isRefreshing {
+            if store.isRefreshing || settings.isCheckingForUpdates {
                 ProgressView()
                     .controlSize(.small)
             }
@@ -246,71 +240,31 @@ struct McDuckPopover: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
-            if let message = updateFooterMessage {
-                Text(message)
-                    .font(.caption2)
-                    .foregroundStyle(updateFooterMessageIsError ? .red : .secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .frame(maxWidth: 150, alignment: .trailing)
-            }
-
-            if settings.isCheckingForUpdates || settings.isInstallingUpdate {
-                ProgressView()
-                    .controlSize(.small)
-            }
-
             updateFooterButton
         }
     }
 
-    private var updateFooterMessage: String? {
-        switch settings.updatePhase {
-        case .idle:
-            nil
-        case .checking:
-            "Checking"
-        case .upToDate:
-            "Up to date"
-        case .available(let release):
-            "\(release.version.description) available"
-        case .installing:
-            "Preparing installer"
-        case .installerOpened:
-            "Installer opened"
-        case .failed:
-            "Update failed"
-        }
-    }
-
-    private var updateFooterMessageIsError: Bool {
-        if case .failed = settings.updatePhase {
-            return true
-        }
-        return false
+    private func refreshFooter() async {
+        await store.refresh(quiet: true)
+        await settings.checkForUpdates()
     }
 
     @ViewBuilder
     private var updateFooterButton: some View {
-        if settings.availableUpdate != nil, !settings.isInstallingUpdate {
-            Button {
-                Task { await settings.installAvailableUpdate() }
-            } label: {
-                Label("Install Update", systemImage: "square.and.arrow.down")
+        if let availableUpdate = settings.availableUpdate {
+            if settings.isInstallingUpdate {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Button {
+                    Task { await settings.installAvailableUpdate() }
+                } label: {
+                    Label("Update", systemImage: "arrow.down.circle")
+                }
+                .mcDuckGlassButton(prominent: true)
+                .controlSize(.small)
+                .help("Install McDuck \(availableUpdate.version.description)")
             }
-            .mcDuckGlassButton(prominent: true)
-            .controlSize(.small)
-            .help("Install McDuck update")
-        } else {
-            Button {
-                Task { await settings.checkForUpdates() }
-            } label: {
-                Label("Updates", systemImage: "arrow.down.circle")
-            }
-            .mcDuckGlassButton()
-            .controlSize(.small)
-            .disabled(settings.isCheckingForUpdates || settings.isInstallingUpdate)
-            .help("Check for updates")
         }
     }
 

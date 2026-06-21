@@ -16,7 +16,7 @@ timestamp: 2026-06-21T06:44:10Z
 * `SettingsStore` persists menu bar settings, login item state, Claude plugin install state, and manual update-check state surfaced from the main popover footer.
 * `PluginInstaller` integrates the bundled Claude Code plugin via CLI or `~/.claude/settings.json` fallback.
 * `AppUpdateService` checks the GitHub release channel for the installed build and opens the downloaded `.pkg` with macOS Installer.
-* `SetupView`, `SettingsView`, `MenuBarLabel`, `HeatmapGrid`, and `UsageDetailView` provide focused UI pieces. `SettingsView` keeps preferences and the Quit action; update checks stay on the main popover footer.
+* `SetupView`, `SettingsView`, `MenuBarLabel`, `HeatmapGrid`, and `UsageDetailView` provide focused UI pieces. `SettingsView` keeps preferences and the Quit action; the main popover footer keeps Refresh on the left, version on the right, and only exposes an Update action when an update is available.
 
 # Dependencies
 

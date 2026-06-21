@@ -11,12 +11,19 @@ struct SettingsViewLayoutTests {
         #expect(!source.contains(#"Text("Updates")"#))
     }
 
-    @Test("main popover footer hosts update controls instead of quit")
-    func mainPopoverFooterHostsUpdateControlsInsteadOfQuit() throws {
+    @Test("main popover footer shows refresh on the left and update only when available")
+    func mainPopoverFooterShowsRefreshAndAvailableUpdateOnly() throws {
         let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
         let footer = try footerSource(in: source)
 
-        #expect(footer.contains(#"Label("Updates", systemImage: "arrow.down.circle")"#))
+        #expect(footer.contains(#"Label("Refresh", systemImage: "arrow.clockwise")"#))
+        #expect(!footer.contains(#"Text("Updated "#))
+        #expect(footer.contains("Text(Self.appVersion)"))
+        #expect(footer.contains("if let availableUpdate = settings.availableUpdate"))
+        #expect(footer.contains(#"Label("Update", systemImage: "arrow.down.circle")"#))
+        #expect(!footer.contains(#"Label("Updates", systemImage: "arrow.down.circle")"#))
+        #expect(!footer.contains(#""Up to date""#))
+        #expect(!footer.contains(#""Update failed""#))
         #expect(!footer.contains(#"Label("Quit", systemImage: "power")"#))
     }
 
