@@ -1,0 +1,4 @@
+interface:
+  display_name: "McDuck Release"
+  short_description: "Plan and cut formal McDuck releases"
+  default_prompt: "Use $mcduck-release to prepare a formal McDuck release from develop."

@@ -1,5 +1,8 @@
 # McDuck Wiki Update Log
 
+## 2026-06-23
+* **Workflow**: Added `/McDuck:release` for formal release planning and execution. The skill compares the latest formal release with `develop`, reviews snapshot releases, drafts Korean release notes, requires user confirmation, and only then merges `develop` to `main` and triggers the release.
+
 ## 2026-06-21
 * **Initialization**: Created the OKF-style `wiki/` bundle for McDuck project knowledge.
 * **Creation**: Added root navigation, project overview, architecture/module maps, progress, decisions, retrospectives, runbooks, references, and templates.
