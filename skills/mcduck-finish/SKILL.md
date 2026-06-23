@@ -5,7 +5,7 @@ description: Use when the user invokes "/McDuck:finish", "/mcduck:finish", or as
 
 # McDuck Finish
 
-Use this skill to finish a McDuck issue after `/McDuck:go` has produced `개발완료`. It verifies the final branch, pushes remaining work, merges the feature branch to `develop`, writes wiki task cleanup, pushes wiki changes, removes the feature worktree/branches, creates a develop snapshot, closes the GitHub issue, reports install shell commands, and sets the session title to `(완)`.
+Use this skill to finish a McDuck issue after `/McDuck:go` has produced `개발완료`. It verifies the final branch, pushes remaining work, merges the feature branch to `develop`, writes wiki task cleanup, pushes wiki changes, removes the feature worktree/branches, creates a develop snapshot, closes the GitHub issue, returns the current checkout to `develop`, reports install shell commands, and sets the session title to `(완)`.
 
 ## Issue Key Discovery
 
@@ -263,6 +263,22 @@ After snapshot is confirmed:
 3. Set status to `완료`.
 4. Close the GitHub issue after the summary update.
 5. Set final session title to `(완)McDuck-<number>: {GitHub issue title}`.
+6. Switch the current checkout back to `develop` before final reporting.
+
+## Final Checkout
+
+The last local repository action must leave the current checkout on `develop`.
+
+After the GitHub issue is closed and the final session title is set, run from the main checkout:
+
+```bash
+MAIN_ROOT="$(git rev-parse --show-toplevel)"
+git -C "$MAIN_ROOT" switch develop
+git -C "$MAIN_ROOT" pull --ff-only origin develop
+git -C "$MAIN_ROOT" status --short --branch
+```
+
+Continue only when the status shows the current branch is `develop`. If switching or fast-forwarding fails, report the blocker and do not claim final cleanup is complete.
 
 Managed summary shape:
 
@@ -290,6 +306,7 @@ Managed summary shape:
   - [x] feature branch/worktree 정리
   - [x] develop snapshot
   - [x] GitHub issue close
+  - [x] final checkout develop
   - [x] 완료
 ```
 
@@ -301,5 +318,6 @@ Final report to the user:
 - snapshot version
 - install shell commands
 - branch/worktree cleanup result
+- final current branch result
 - GitHub issue close result
 - status `완료`
