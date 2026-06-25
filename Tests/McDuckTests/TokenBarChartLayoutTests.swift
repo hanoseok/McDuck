@@ -55,16 +55,40 @@ struct TokenBarChartLayoutTests {
         #expect(updateHover.contains("let nextDay = day(at: location, proxy: proxy, geo: geo)"))
         #expect(updateHover.contains("guard nextDay != hoveredDay else { return }"))
         #expect(updateHover.contains("hoveredDay = nextDay"))
-        #expect(updateHover.contains("hoverLocation = nextDay == nil ? nil : location"))
     }
 
     @Test("tooltip overlay does not intercept chart hover")
     func tooltipOverlayAllowsChartHoverToContinue() throws {
         let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
         let chart = try tokenBarChartSource(in: source)
-        let chartBody = try chartBodySource(in: chart)
+        let tooltipArea = try tooltipAreaSource(in: chart)
 
-        #expect(chartBody.contains(".allowsHitTesting(false)"))
+        #expect(tooltipArea.contains(".allowsHitTesting(false)"))
+    }
+
+    @Test("tooltip is laid out above the chart instead of covering the plot")
+    func tooltipRendersAboveChart() throws {
+        let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
+        let chart = try tokenBarChartSource(in: source)
+        let body = try bodySource(in: chart)
+        let chartBody = try chartBodySource(in: chart)
+        let tooltipArea = try tooltipAreaSource(in: chart)
+
+        #expect(body.contains("tooltipArea\n\n            chartBody"))
+        #expect(tooltipArea.contains("tooltip(date: hoveredDay, items: items)"))
+        #expect(tooltipArea.contains(".frame(height: Self.tooltipAreaHeight"))
+        #expect(tooltipArea.contains(".allowsHitTesting(false)"))
+        #expect(!chartBody.contains("tooltip(date: hoveredDay, items: items)"))
+    }
+
+    @Test("tooltip above the chart does not track pointer location")
+    func tooltipAboveChartDoesNotTrackPointerLocation() throws {
+        let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
+        let chart = try tokenBarChartSource(in: source)
+        let updateHover = try updateHoverSource(in: chart)
+
+        #expect(!chart.contains("hoverLocation"))
+        #expect(!updateHover.contains("location ="))
     }
 
     private func mcDuckPopoverURL() -> URL {
@@ -89,6 +113,13 @@ struct TokenBarChartLayoutTests {
         return source[start.lowerBound..<end.lowerBound]
     }
 
+    private func bodySource(in chart: Substring) throws -> Substring {
+        let start = try #require(chart.range(of: "var body: some View"))
+        let end = try #require(chart.range(of: "private var chartBody: some View"))
+
+        return chart[start.lowerBound..<end.lowerBound]
+    }
+
     private func modelLegendSource(in chart: Substring) throws -> Substring {
         let start = try #require(chart.range(of: "private var modelLegend: some View"))
         let end = try #require(chart.range(of: "private func day(at location:"))
@@ -106,6 +137,13 @@ struct TokenBarChartLayoutTests {
     private func updateHoverSource(in chart: Substring) throws -> Substring {
         let start = try #require(chart.range(of: "private func updateHover(at location:"))
         let end = try #require(chart.range(of: "private func day(at location:"))
+
+        return chart[start.lowerBound..<end.lowerBound]
+    }
+
+    private func tooltipAreaSource(in chart: Substring) throws -> Substring {
+        let start = try #require(chart.range(of: "private var tooltipArea: some View"))
+        let end = try #require(chart.range(of: "private var chartBody: some View"))
 
         return chart[start.lowerBound..<end.lowerBound]
     }
