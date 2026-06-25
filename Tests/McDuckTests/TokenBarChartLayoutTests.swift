@@ -3,16 +3,20 @@ import Testing
 
 @Suite("token bar chart layout")
 struct TokenBarChartLayoutTests {
-    @Test("token chart hides built in legend and renders a bounded scrollable model legend")
-    func tokenChartUsesScrollableModelLegend() throws {
+    @Test("token chart hides built in legend and renders a two row horizontally scrollable model legend")
+    func tokenChartUsesTwoRowHorizontalModelLegend() throws {
         let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
         let chart = try tokenBarChartSource(in: source)
         let legend = try modelLegendSource(in: chart)
 
         #expect(chart.contains(".chartLegend(.hidden)"))
         #expect(chart.contains("private var modelLegend: some View"))
-        #expect(legend.contains("ScrollView(.vertical"))
-        #expect(legend.contains(".frame(maxHeight:"))
+        #expect(chart.contains("private static let legendRowCount = 2"))
+        #expect(chart.contains("count: Self.legendRowCount"))
+        #expect(legend.contains("ScrollView(.horizontal"))
+        #expect(legend.contains("LazyHGrid("))
+        #expect(legend.contains(".frame(height:"))
+        #expect(!legend.contains("ScrollView(.vertical"))
         #expect(legend.contains(".truncationMode(.middle)"))
     }
 
