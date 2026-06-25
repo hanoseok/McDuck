@@ -12,10 +12,13 @@ struct TokenBarChartLayoutTests {
         #expect(chart.contains(".chartLegend(.hidden)"))
         #expect(chart.contains("private var modelLegend: some View"))
         #expect(chart.contains("private static let legendRowCount = 2"))
+        #expect(chart.contains("private static let legendRowHeight: CGFloat = 14"))
+        #expect(chart.contains("private static let legendVerticalPadding: CGFloat = 4"))
         #expect(chart.contains("count: Self.legendRowCount"))
         #expect(legend.contains("ScrollView(.horizontal"))
         #expect(legend.contains("LazyHGrid("))
-        #expect(legend.contains(".frame(height:"))
+        #expect(legend.contains(".font(.caption2)"))
+        #expect(legend.contains(".frame(height: Self.legendRowHeight * CGFloat(Self.legendRowCount) + Self.legendVerticalPadding)"))
         #expect(!legend.contains("ScrollView(.vertical"))
         #expect(legend.contains(".truncationMode(.middle)"))
     }
@@ -38,6 +41,21 @@ struct TokenBarChartLayoutTests {
 
         #expect(tooltip.contains("ScrollView(.vertical"))
         #expect(tooltip.contains(".frame(maxHeight:"))
+    }
+
+    @Test("hover changes tooltip state only when the hovered day changes")
+    func hoverUpdatesOnlyWhenHoveredDayChanges() throws {
+        let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
+        let chart = try tokenBarChartSource(in: source)
+        let chartBody = try chartBodySource(in: chart)
+        let updateHover = try updateHoverSource(in: chart)
+
+        #expect(chartBody.contains("updateHover(at: location, proxy: proxy, geo: geo)"))
+        #expect(!chartBody.contains("hoverLocation = hoveredDay == nil ? nil : location"))
+        #expect(updateHover.contains("let nextDay = day(at: location, proxy: proxy, geo: geo)"))
+        #expect(updateHover.contains("guard nextDay != hoveredDay else { return }"))
+        #expect(updateHover.contains("hoveredDay = nextDay"))
+        #expect(updateHover.contains("hoverLocation = nextDay == nil ? nil : location"))
     }
 
     private func mcDuckPopoverURL() -> URL {
@@ -64,6 +82,20 @@ struct TokenBarChartLayoutTests {
 
     private func modelLegendSource(in chart: Substring) throws -> Substring {
         let start = try #require(chart.range(of: "private var modelLegend: some View"))
+        let end = try #require(chart.range(of: "private func day(at location:"))
+
+        return chart[start.lowerBound..<end.lowerBound]
+    }
+
+    private func chartBodySource(in chart: Substring) throws -> Substring {
+        let start = try #require(chart.range(of: "private var chartBody: some View"))
+        let end = try #require(chart.range(of: "private var modelLegend: some View"))
+
+        return chart[start.lowerBound..<end.lowerBound]
+    }
+
+    private func updateHoverSource(in chart: Substring) throws -> Substring {
+        let start = try #require(chart.range(of: "private func updateHover(at location:"))
         let end = try #require(chart.range(of: "private func day(at location:"))
 
         return chart[start.lowerBound..<end.lowerBound]

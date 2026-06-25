@@ -361,7 +361,8 @@ private struct TokenBarChart: View {
         .yellow
     ]
     private static let legendRowCount = 2
-    private static let legendRowHeight: CGFloat = 18
+    private static let legendRowHeight: CGFloat = 14
+    private static let legendVerticalPadding: CGFloat = 4
 
     /// A fully opaque, fixed RGB color (not a system/dynamic color). System
     /// colors render with vibrancy inside the menu-bar popover, which is why the
@@ -481,8 +482,7 @@ private struct TokenBarChart: View {
                     .onContinuousHover { phase in
                         switch phase {
                         case .active(let location):
-                            hoveredDay = day(at: location, proxy: proxy, geo: geo)
-                            hoverLocation = hoveredDay == nil ? nil : location
+                            updateHover(at: location, proxy: proxy, geo: geo)
                         case .ended:
                             hoveredDay = nil
                             hoverLocation = nil
@@ -512,25 +512,31 @@ private struct TokenBarChart: View {
             LazyHGrid(
                 rows: legendRows,
                 alignment: .top,
-                spacing: 6
+                spacing: 4
             ) {
                 ForEach(modelDomain, id: \.self) { model in
-                    HStack(spacing: 7) {
+                    HStack(spacing: 6) {
                         Circle()
                             .fill(modelColor(for: model))
-                            .frame(width: 8, height: 8)
+                            .frame(width: 7, height: 7)
 
                         Text(model)
-                            .font(.caption)
+                            .font(.caption2)
                             .lineLimit(1)
                             .truncationMode(.middle)
                     }
                     .frame(width: 190, alignment: .leading)
                 }
             }
-            .padding(.bottom, 2)
         }
-        .frame(height: Self.legendRowHeight * CGFloat(Self.legendRowCount) + 6)
+        .frame(height: Self.legendRowHeight * CGFloat(Self.legendRowCount) + Self.legendVerticalPadding)
+    }
+
+    private func updateHover(at location: CGPoint, proxy: ChartProxy, geo: GeometryProxy) {
+        let nextDay = day(at: location, proxy: proxy, geo: geo)
+        guard nextDay != hoveredDay else { return }
+        hoveredDay = nextDay
+        hoverLocation = nextDay == nil ? nil : location
     }
 
     private func day(at location: CGPoint, proxy: ChartProxy, geo: GeometryProxy) -> Date? {
