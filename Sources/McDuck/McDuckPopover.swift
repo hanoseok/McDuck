@@ -360,6 +360,8 @@ private struct TokenBarChart: View {
         .red,
         .yellow
     ]
+    private static let legendRowCount = 2
+    private static let legendRowHeight: CGFloat = 18
 
     /// A fully opaque, fixed RGB color (not a system/dynamic color). System
     /// colors render with vibrancy inside the menu-bar popover, which is why the
@@ -413,6 +415,13 @@ private struct TokenBarChart: View {
 
     private var modelColors: [Color] {
         modelDomain.indices.map { Self.modelPalette[$0 % Self.modelPalette.count] }
+    }
+
+    private var legendRows: [GridItem] {
+        Array(
+            repeating: GridItem(.fixed(Self.legendRowHeight), alignment: .leading),
+            count: Self.legendRowCount
+        )
     }
 
     var body: some View {
@@ -499,13 +508,10 @@ private struct TokenBarChart: View {
     }
 
     private var modelLegend: some View {
-        ScrollView(.vertical, showsIndicators: modelDomain.count > 6) {
-            LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), alignment: .leading),
-                    GridItem(.flexible(), alignment: .leading)
-                ],
-                alignment: .leading,
+        ScrollView(.horizontal, showsIndicators: modelDomain.count > Self.legendRowCount * 3) {
+            LazyHGrid(
+                rows: legendRows,
+                alignment: .top,
                 spacing: 6
             ) {
                 ForEach(modelDomain, id: \.self) { model in
@@ -519,12 +525,12 @@ private struct TokenBarChart: View {
                             .lineLimit(1)
                             .truncationMode(.middle)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(width: 190, alignment: .leading)
                 }
             }
-            .padding(.trailing, 4)
+            .padding(.bottom, 2)
         }
-        .frame(maxHeight: 74)
+        .frame(height: Self.legendRowHeight * CGFloat(Self.legendRowCount) + 6)
     }
 
     private func day(at location: CGPoint, proxy: ChartProxy, geo: GeometryProxy) -> Date? {

@@ -1,6 +1,7 @@
 # McDuck Wiki Update Log
 
 ## 2026-06-25
+* **UX adjustment**: Refined issue #55 model legend to show at most two top rows with horizontal scrolling.
 * **UX adjustment**: Added progress notes for issue #55 covering the scrollable model legend and bounded token chart tooltip.
 
 ## 2026-06-22
