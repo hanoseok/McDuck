@@ -502,6 +502,7 @@ private struct TokenBarChart: View {
                         .frame(width: tipWidth, alignment: .leading)
                         .offset(x: x, y: 2)
                 }
+                .allowsHitTesting(false)
             }
         }
         .accessibilityLabel("Token usage by model and day")
