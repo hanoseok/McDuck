@@ -1,6 +1,7 @@
 # McDuck Wiki Update Log
 
 ## 2026-06-25
+* **UX adjustment**: Reduced the issue #55 top model legend height and gated chart hover tooltip updates to day changes to avoid flicker.
 * **UX adjustment**: Refined issue #55 model legend to show at most two top rows with horizontal scrolling.
 * **UX adjustment**: Added progress notes for issue #55 covering the scrollable model legend and bounded token chart tooltip.
 
