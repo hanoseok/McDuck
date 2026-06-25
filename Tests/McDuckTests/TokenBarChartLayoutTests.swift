@@ -58,6 +58,15 @@ struct TokenBarChartLayoutTests {
         #expect(updateHover.contains("hoverLocation = nextDay == nil ? nil : location"))
     }
 
+    @Test("tooltip overlay does not intercept chart hover")
+    func tooltipOverlayAllowsChartHoverToContinue() throws {
+        let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
+        let chart = try tokenBarChartSource(in: source)
+        let chartBody = try chartBodySource(in: chart)
+
+        #expect(chartBody.contains(".allowsHitTesting(false)"))
+    }
+
     private func mcDuckPopoverURL() -> URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
