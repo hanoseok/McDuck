@@ -345,7 +345,6 @@ private struct TokenBarChart: View {
     let days: [UsageDay]
 
     @State private var hoveredDay: Date?
-    @State private var hoverLocation: CGPoint?
     @Environment(\.colorScheme) private var colorScheme
 
     private static let modelPalette: [Color] = [
@@ -363,6 +362,8 @@ private struct TokenBarChart: View {
     private static let legendRowCount = 2
     private static let legendRowHeight: CGFloat = 14
     private static let legendVerticalPadding: CGFloat = 4
+    private static let tooltipAreaHeight: CGFloat = 92
+    private static let tooltipRowsMaxHeight: CGFloat = 56
 
     /// A fully opaque, fixed RGB color (not a system/dynamic color). System
     /// colors render with vibrancy inside the menu-bar popover, which is why the
@@ -431,10 +432,25 @@ private struct TokenBarChart: View {
                 modelLegend
             }
 
+            tooltipArea
+
             chartBody
                 .frame(height: 120)
         }
         .accessibilityLabel("Token usage by model and day")
+    }
+
+    private var tooltipArea: some View {
+        ZStack(alignment: .topLeading) {
+            if let hoveredDay, let items = segmentsByDay[hoveredDay] {
+                tooltip(date: hoveredDay, items: items)
+            } else {
+                Color.clear
+            }
+        }
+        .frame(height: Self.tooltipAreaHeight, alignment: .topLeading)
+        .clipped()
+        .allowsHitTesting(false)
     }
 
     private var chartBody: some View {
@@ -485,24 +501,8 @@ private struct TokenBarChart: View {
                             updateHover(at: location, proxy: proxy, geo: geo)
                         case .ended:
                             hoveredDay = nil
-                            hoverLocation = nil
                         }
                     }
-            }
-        }
-        // Keep the tooltip in the chart overlay so it stays opaque above marks.
-        .overlay {
-            if let hoveredDay, let items = segmentsByDay[hoveredDay], let location = hoverLocation {
-                GeometryReader { geo in
-                    let tipWidth: CGFloat = 184
-                    let minX: CGFloat = 4
-                    let maxX = max(minX, geo.size.width - tipWidth - 4)
-                    let x = min(max(location.x - tipWidth / 2, minX), maxX)
-                    tooltip(date: hoveredDay, items: items)
-                        .frame(width: tipWidth, alignment: .leading)
-                        .offset(x: x, y: 2)
-                }
-                .allowsHitTesting(false)
             }
         }
         .accessibilityLabel("Token usage by model and day")
@@ -537,7 +537,6 @@ private struct TokenBarChart: View {
         let nextDay = day(at: location, proxy: proxy, geo: geo)
         guard nextDay != hoveredDay else { return }
         hoveredDay = nextDay
-        hoverLocation = nextDay == nil ? nil : location
     }
 
     private func day(at location: CGPoint, proxy: ChartProxy, geo: GeometryProxy) -> Date? {
@@ -580,7 +579,7 @@ private struct TokenBarChart: View {
                     }
                 }
             }
-            .frame(maxHeight: 118)
+            .frame(maxHeight: Self.tooltipRowsMaxHeight)
         }
         .padding(8)
         .frame(minWidth: 150, alignment: .leading)
