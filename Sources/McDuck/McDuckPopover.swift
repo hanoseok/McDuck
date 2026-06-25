@@ -115,7 +115,6 @@ struct McDuckPopover: View {
             summaryStrip
 
             TokenBarChart(days: store.filteredDays)
-                .frame(height: 120)
                 .padding(12)
                 .mcDuckGlass(cornerRadius: 14)
 
@@ -349,6 +348,19 @@ private struct TokenBarChart: View {
     @State private var hoverLocation: CGPoint?
     @Environment(\.colorScheme) private var colorScheme
 
+    private static let modelPalette: [Color] = [
+        .blue,
+        .green,
+        .orange,
+        .purple,
+        .pink,
+        .teal,
+        .indigo,
+        .mint,
+        .red,
+        .yellow
+    ]
+
     /// A fully opaque, fixed RGB color (not a system/dynamic color). System
     /// colors render with vibrancy inside the menu-bar popover, which is why the
     /// tooltip looked see-through; a literal color stays solid.
@@ -380,7 +392,42 @@ private struct TokenBarChart: View {
         Dictionary(grouping: segments) { Calendar(identifier: .gregorian).startOfDay(for: $0.date) }
     }
 
+    private var modelTotals: [(model: String, tokens: Int)] {
+        let totals = segments.reduce(into: [String: Int]()) { result, segment in
+            result[segment.model, default: 0] += segment.tokens
+        }
+
+        return totals
+            .map { (model: $0.key, tokens: $0.value) }
+            .sorted {
+                if $0.tokens == $1.tokens {
+                    return $0.model < $1.model
+                }
+                return $0.tokens > $1.tokens
+            }
+    }
+
+    private var modelDomain: [String] {
+        modelTotals.map(\.model)
+    }
+
+    private var modelColors: [Color] {
+        modelDomain.indices.map { Self.modelPalette[$0 % Self.modelPalette.count] }
+    }
+
     var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !modelDomain.isEmpty {
+                modelLegend
+            }
+
+            chartBody
+                .frame(height: 120)
+        }
+        .accessibilityLabel("Token usage by model and day")
+    }
+
+    private var chartBody: some View {
         Chart {
             ForEach(segments) { segment in
                 BarMark(
@@ -395,6 +442,7 @@ private struct TokenBarChart: View {
                     .foregroundStyle(.secondary.opacity(0.35))
             }
         }
+        .chartForegroundStyleScale(domain: modelDomain, range: modelColors)
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 6)) { value in
                 AxisGridLine()
@@ -415,7 +463,7 @@ private struct TokenBarChart: View {
                 }
             }
         }
-        .chartLegend(position: .top, alignment: .leading)
+        .chartLegend(.hidden)
         .chartOverlay { proxy in
             GeometryReader { geo in
                 Rectangle()
@@ -433,8 +481,7 @@ private struct TokenBarChart: View {
                     }
             }
         }
-        // Render the tooltip as a top-level overlay so it draws ON TOP of the
-        // legend (a chart annotation renders under it) and is fully opaque.
+        // Keep the tooltip in the chart overlay so it stays opaque above marks.
         .overlay {
             if let hoveredDay, let items = segmentsByDay[hoveredDay], let location = hoverLocation {
                 GeometryReader { geo in
@@ -451,6 +498,35 @@ private struct TokenBarChart: View {
         .accessibilityLabel("Token usage by model and day")
     }
 
+    private var modelLegend: some View {
+        ScrollView(.vertical, showsIndicators: modelDomain.count > 6) {
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), alignment: .leading),
+                    GridItem(.flexible(), alignment: .leading)
+                ],
+                alignment: .leading,
+                spacing: 6
+            ) {
+                ForEach(modelDomain, id: \.self) { model in
+                    HStack(spacing: 7) {
+                        Circle()
+                            .fill(modelColor(for: model))
+                            .frame(width: 8, height: 8)
+
+                        Text(model)
+                            .font(.caption)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.trailing, 4)
+        }
+        .frame(maxHeight: 74)
+    }
+
     private func day(at location: CGPoint, proxy: ChartProxy, geo: GeometryProxy) -> Date? {
         guard let plotFrame = proxy.plotFrame else {
             return nil
@@ -463,22 +539,35 @@ private struct TokenBarChart: View {
         return segmentsByDay[startOfDay] != nil ? startOfDay : nil
     }
 
+    private func modelColor(for model: String) -> Color {
+        guard let index = modelDomain.firstIndex(of: model) else {
+            return Self.modelPalette[0]
+        }
+        return Self.modelPalette[index % Self.modelPalette.count]
+    }
+
     private func tooltip(date: Date, items: [Segment]) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(date, format: .dateTime.year().month().day())
                 .font(.caption2.weight(.semibold))
 
-            ForEach(items.sorted { $0.tokens > $1.tokens }) { item in
-                HStack(spacing: 10) {
-                    Text(item.model)
-                        .font(.caption2)
-                        .lineLimit(1)
-                    Spacer()
-                    Text(Formatters.compact(item.tokens))
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.secondary)
+            ScrollView(.vertical, showsIndicators: items.count > 5) {
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(items.sorted { $0.tokens > $1.tokens }) { item in
+                        HStack(spacing: 10) {
+                            Text(item.model)
+                                .font(.caption2)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Spacer()
+                            Text(Formatters.compact(item.tokens))
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
+            .frame(maxHeight: 118)
         }
         .padding(8)
         .frame(minWidth: 150, alignment: .leading)

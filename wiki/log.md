@@ -1,5 +1,8 @@
 # McDuck Wiki Update Log
 
+## 2026-06-25
+* **UX adjustment**: Added progress notes for issue #55 covering the scrollable model legend and bounded token chart tooltip.
+
 ## 2026-06-22
 * **Completion**: Added a progress report for issue #45 covering the automatic update check workflow, final feature verification, merged PR, and snapshot evidence.
 
