@@ -3,24 +3,29 @@ import Testing
 
 @Suite("token bar chart layout")
 struct TokenBarChartLayoutTests {
-    @Test("token chart hides built in legend and renders a two row vertically scrollable model legend")
-    func tokenChartUsesTwoRowVerticalModelLegend() throws {
+    @Test("token chart hides built in legend and renders an adaptive two column vertical model legend")
+    func tokenChartUsesAdaptiveTwoColumnVerticalModelLegend() throws {
         let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
         let chart = try tokenBarChartSource(in: source)
         let legend = try modelLegendSource(in: chart)
 
         #expect(chart.contains(".chartLegend(.hidden)"))
         #expect(chart.contains("private var modelLegend: some View"))
-        #expect(chart.contains("private static let legendRowCount = 2"))
+        #expect(chart.contains("private static let legendColumnCount = 2"))
+        #expect(chart.contains("private static let legendMaxRowCount = 4"))
         #expect(chart.contains("private static let legendRowHeight: CGFloat = 14"))
         #expect(chart.contains("private static let legendVerticalPadding: CGFloat = 4"))
+        #expect(chart.contains("private var legendVisibleRowCount: Int"))
+        #expect(chart.contains("(modelDomain.count + Self.legendColumnCount - 1) / Self.legendColumnCount"))
+        #expect(chart.contains("min(Self.legendMaxRowCount, max(1, rowCount))"))
         #expect(legend.contains("ScrollView(.vertical"))
-        #expect(legend.contains("LazyVStack("))
-        #expect(legend.contains("showsIndicators: modelDomain.count > Self.legendRowCount"))
+        #expect(legend.contains("LazyVGrid(columns: legendColumns"))
+        #expect(legend.contains("showsIndicators: modelDomain.count > Self.legendColumnCount * Self.legendMaxRowCount"))
         #expect(legend.contains(".font(.caption2)"))
-        #expect(legend.contains(".frame(height: Self.legendRowHeight * CGFloat(Self.legendRowCount) + Self.legendVerticalPadding)"))
+        #expect(legend.contains(".frame(height: Self.legendRowHeight * CGFloat(legendVisibleRowCount) + Self.legendVerticalPadding)"))
         #expect(!legend.contains("ScrollView(.horizontal"))
         #expect(!legend.contains("LazyHGrid("))
+        #expect(!legend.contains("LazyVStack("))
         #expect(legend.contains(".truncationMode(.middle)"))
     }
 
@@ -62,23 +67,25 @@ struct TokenBarChartLayoutTests {
     func tooltipOverlayAllowsChartHoverToContinue() throws {
         let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
         let chart = try tokenBarChartSource(in: source)
-        let tooltipArea = try tooltipAreaSource(in: chart)
+        let floatingTooltip = try floatingTooltipSource(in: chart)
 
-        #expect(tooltipArea.contains(".allowsHitTesting(false)"))
+        #expect(floatingTooltip.contains(".allowsHitTesting(false)"))
     }
 
-    @Test("tooltip is laid out above the chart instead of covering the plot")
-    func tooltipRendersAboveChart() throws {
+    @Test("tooltip floats above the chart without reserving layout space")
+    func tooltipFloatsAboveChartWithoutReservedLayoutSpace() throws {
         let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
         let chart = try tokenBarChartSource(in: source)
         let body = try bodySource(in: chart)
         let chartBody = try chartBodySource(in: chart)
-        let tooltipArea = try tooltipAreaSource(in: chart)
+        let floatingTooltip = try floatingTooltipSource(in: chart)
 
-        #expect(body.contains("tooltipArea\n\n            chartBody"))
-        #expect(tooltipArea.contains("tooltip(date: hoveredDay, items: items)"))
-        #expect(tooltipArea.contains(".frame(height: Self.tooltipAreaHeight"))
-        #expect(tooltipArea.contains(".allowsHitTesting(false)"))
+        #expect(body.contains("chartBody\n                .frame(height: 120)\n                .overlay(alignment: .topLeading)"))
+        #expect(!body.contains("tooltipArea"))
+        #expect(!chart.contains("tooltipAreaHeight"))
+        #expect(floatingTooltip.contains("tooltip(date: hoveredDay, items: items)"))
+        #expect(floatingTooltip.contains(".offset(y: -Self.tooltipFloatingOffset)"))
+        #expect(floatingTooltip.contains(".allowsHitTesting(false)"))
         #expect(!chartBody.contains("tooltip(date: hoveredDay, items: items)"))
     }
 
@@ -142,8 +149,8 @@ struct TokenBarChartLayoutTests {
         return chart[start.lowerBound..<end.lowerBound]
     }
 
-    private func tooltipAreaSource(in chart: Substring) throws -> Substring {
-        let start = try #require(chart.range(of: "private var tooltipArea: some View"))
+    private func floatingTooltipSource(in chart: Substring) throws -> Substring {
+        let start = try #require(chart.range(of: "private var floatingTooltip: some View"))
         let end = try #require(chart.range(of: "private var chartBody: some View"))
 
         return chart[start.lowerBound..<end.lowerBound]
