@@ -419,13 +419,6 @@ private struct TokenBarChart: View {
         modelDomain.indices.map { Self.modelPalette[$0 % Self.modelPalette.count] }
     }
 
-    private var legendRows: [GridItem] {
-        Array(
-            repeating: GridItem(.fixed(Self.legendRowHeight), alignment: .leading),
-            count: Self.legendRowCount
-        )
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !modelDomain.isEmpty {
@@ -509,10 +502,9 @@ private struct TokenBarChart: View {
     }
 
     private var modelLegend: some View {
-        ScrollView(.horizontal, showsIndicators: modelDomain.count > Self.legendRowCount * 3) {
-            LazyHGrid(
-                rows: legendRows,
-                alignment: .top,
+        ScrollView(.vertical, showsIndicators: modelDomain.count > Self.legendRowCount) {
+            LazyVStack(
+                alignment: .leading,
                 spacing: 4
             ) {
                 ForEach(modelDomain, id: \.self) { model in
@@ -526,9 +518,10 @@ private struct TokenBarChart: View {
                             .lineLimit(1)
                             .truncationMode(.middle)
                     }
-                    .frame(width: 190, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: Self.legendRowHeight, alignment: .leading)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(height: Self.legendRowHeight * CGFloat(Self.legendRowCount) + Self.legendVerticalPadding)
     }

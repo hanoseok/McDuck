@@ -3,8 +3,8 @@ import Testing
 
 @Suite("token bar chart layout")
 struct TokenBarChartLayoutTests {
-    @Test("token chart hides built in legend and renders a two row horizontally scrollable model legend")
-    func tokenChartUsesTwoRowHorizontalModelLegend() throws {
+    @Test("token chart hides built in legend and renders a two row vertically scrollable model legend")
+    func tokenChartUsesTwoRowVerticalModelLegend() throws {
         let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
         let chart = try tokenBarChartSource(in: source)
         let legend = try modelLegendSource(in: chart)
@@ -14,12 +14,13 @@ struct TokenBarChartLayoutTests {
         #expect(chart.contains("private static let legendRowCount = 2"))
         #expect(chart.contains("private static let legendRowHeight: CGFloat = 14"))
         #expect(chart.contains("private static let legendVerticalPadding: CGFloat = 4"))
-        #expect(chart.contains("count: Self.legendRowCount"))
-        #expect(legend.contains("ScrollView(.horizontal"))
-        #expect(legend.contains("LazyHGrid("))
+        #expect(legend.contains("ScrollView(.vertical"))
+        #expect(legend.contains("LazyVStack("))
+        #expect(legend.contains("showsIndicators: modelDomain.count > Self.legendRowCount"))
         #expect(legend.contains(".font(.caption2)"))
         #expect(legend.contains(".frame(height: Self.legendRowHeight * CGFloat(Self.legendRowCount) + Self.legendVerticalPadding)"))
-        #expect(!legend.contains("ScrollView(.vertical"))
+        #expect(!legend.contains("ScrollView(.horizontal"))
+        #expect(!legend.contains("LazyHGrid("))
         #expect(legend.contains(".truncationMode(.middle)"))
     }
 
