@@ -1,5 +1,8 @@
 # McDuck Wiki Update Log
 
+## 2026-06-27
+* **UX adjustment**: Changed the issue #55 top model legend from horizontal scrolling back to bounded vertical scrolling.
+
 ## 2026-06-25
 * **UX adjustment**: Moved the issue #55 token chart tooltip into a fixed area above the graph so it does not cover the chart.
 * **UX adjustment**: Disabled hit testing on the issue #55 token chart tooltip overlay so it does not interrupt chart hover and flicker.

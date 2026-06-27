@@ -20,6 +20,7 @@ Issue #55 fixes the popover token chart when `ccusage --breakdown` returns many 
 * Follow-up: reduced the two-row legend height and only updates hover tooltip state when the hovered chart day changes, avoiding flicker from small pointer movements inside the same day.
 * Follow-up: disabled hit testing on the tooltip overlay so the tooltip cannot interrupt the chart hover stream when it appears under the cursor.
 * Follow-up: moved the tooltip into a fixed area above the chart, removing pointer-location tracking so the tooltip never covers the graph itself.
+* Follow-up: changed the top model legend from horizontal scrolling back to a bounded two-row vertical scroller.
 
 # Evidence
 
@@ -32,6 +33,7 @@ Issue #55 fixes the popover token chart when `ccusage --breakdown` returns many 
   * Red: `swift test --filter TokenBarChartLayoutTests.tooltipOverlayAllowsChartHoverToContinue` failed before the tooltip overlay ignored hit testing.
   * Red: `swift test --filter TokenBarChartLayoutTests.tooltipRendersAboveChart` failed while the tooltip still rendered inside the chart overlay.
   * Red: `swift test --filter TokenBarChartLayoutTests.tooltipAboveChartDoesNotTrackPointerLocation` failed while pointer-location state still existed.
+  * Red: `swift test --filter TokenBarChartLayoutTests.tokenChartUsesTwoRowVerticalModelLegend` failed while the legend still used horizontal scrolling.
   * Green: `swift test --filter TokenBarChartLayoutTests` passed after implementation.
 
 # Next
