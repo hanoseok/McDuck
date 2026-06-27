@@ -1,5 +1,8 @@
 # McDuck Wiki Update Log
 
+## 2026-06-28
+* **UX adjustment**: Changed the issue #55 model legend to a two-column adaptive vertical grid that grows to four rows, and made the chart tooltip float above the graph without reserving layout space.
+
 ## 2026-06-27
 * **UX adjustment**: Changed the issue #55 top model legend from horizontal scrolling back to bounded vertical scrolling.
 

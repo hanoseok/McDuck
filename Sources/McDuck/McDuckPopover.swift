@@ -359,10 +359,12 @@ private struct TokenBarChart: View {
         .red,
         .yellow
     ]
-    private static let legendRowCount = 2
+    private static let legendColumnCount = 2
+    private static let legendMaxRowCount = 4
     private static let legendRowHeight: CGFloat = 14
     private static let legendVerticalPadding: CGFloat = 4
-    private static let tooltipAreaHeight: CGFloat = 92
+    private static let legendColumnSpacing: CGFloat = 8
+    private static let tooltipFloatingOffset: CGFloat = 96
     private static let tooltipRowsMaxHeight: CGFloat = 56
 
     /// A fully opaque, fixed RGB color (not a system/dynamic color). System
@@ -419,31 +421,41 @@ private struct TokenBarChart: View {
         modelDomain.indices.map { Self.modelPalette[$0 % Self.modelPalette.count] }
     }
 
+    private var legendVisibleRowCount: Int {
+        let rowCount = (modelDomain.count + Self.legendColumnCount - 1) / Self.legendColumnCount
+        return min(Self.legendMaxRowCount, max(1, rowCount))
+    }
+
+    private var legendColumns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(), spacing: Self.legendColumnSpacing, alignment: .leading),
+            count: Self.legendColumnCount
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !modelDomain.isEmpty {
                 modelLegend
             }
 
-            tooltipArea
-
             chartBody
                 .frame(height: 120)
+                .overlay(alignment: .topLeading) {
+                    floatingTooltip
+                }
         }
         .accessibilityLabel("Token usage by model and day")
     }
 
-    private var tooltipArea: some View {
-        ZStack(alignment: .topLeading) {
-            if let hoveredDay, let items = segmentsByDay[hoveredDay] {
-                tooltip(date: hoveredDay, items: items)
-            } else {
-                Color.clear
-            }
+    @ViewBuilder
+    private var floatingTooltip: some View {
+        if let hoveredDay, let items = segmentsByDay[hoveredDay] {
+            tooltip(date: hoveredDay, items: items)
+                .offset(y: -Self.tooltipFloatingOffset)
+                .allowsHitTesting(false)
+                .zIndex(1)
         }
-        .frame(height: Self.tooltipAreaHeight, alignment: .topLeading)
-        .clipped()
-        .allowsHitTesting(false)
     }
 
     private var chartBody: some View {
@@ -502,11 +514,8 @@ private struct TokenBarChart: View {
     }
 
     private var modelLegend: some View {
-        ScrollView(.vertical, showsIndicators: modelDomain.count > Self.legendRowCount) {
-            LazyVStack(
-                alignment: .leading,
-                spacing: 4
-            ) {
+        ScrollView(.vertical, showsIndicators: modelDomain.count > Self.legendColumnCount * Self.legendMaxRowCount) {
+            LazyVGrid(columns: legendColumns, alignment: .leading, spacing: 4) {
                 ForEach(modelDomain, id: \.self) { model in
                     HStack(spacing: 6) {
                         Circle()
@@ -523,7 +532,7 @@ private struct TokenBarChart: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(height: Self.legendRowHeight * CGFloat(Self.legendRowCount) + Self.legendVerticalPadding)
+        .frame(height: Self.legendRowHeight * CGFloat(legendVisibleRowCount) + Self.legendVerticalPadding)
     }
 
     private func updateHover(at location: CGPoint, proxy: ChartProxy, geo: GeometryProxy) {
