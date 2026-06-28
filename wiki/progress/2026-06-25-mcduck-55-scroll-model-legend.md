@@ -26,6 +26,7 @@ Issue #55 fixes the popover token chart when `ccusage --breakdown` returns many 
 * Follow-up: capped the adaptive two-column model legend at three visible rows before scrolling.
 * Follow-up: anchored the chart tooltip directly above the hovered bar and allowed the tooltip itself to receive hover events so long model lists can scroll.
 * Follow-up: reduced the tooltip's default width by roughly 40% while allowing intrinsic growth for long model names, and aligned the tooltip bottom exactly to the hovered bar top.
+* Follow-up: replaced tooltip alignment guides with measured-size offsets so the tooltip bottom is positioned directly at the hovered bar top.
 
 # Evidence
 
@@ -43,6 +44,7 @@ Issue #55 fixes the popover token chart when `ccusage --breakdown` returns many 
   * Red: `swift test --filter TokenBarChartLayoutTests.tooltipFloatsAboveChartWithoutReservedLayoutSpace` failed while the tooltip still used a reserved fixed area above the chart.
   * Red: `swift test --filter TokenBarChartLayoutTests` failed while the legend still capped at four rows and the tooltip still used a fixed offset with hit testing disabled.
   * Red: `swift test --filter TokenBarChartLayoutTests` failed while the tooltip still used the 150pt minimum width and an 8pt gap above the hovered bar.
+  * Red: `swift test --filter TokenBarChartLayoutTests.tooltipIsDirectlyPositionedAboveHoveredBarWithoutReservedLayoutSpace` failed while the tooltip still used alignment guides instead of measuring its own size for direct offset positioning.
   * Green: `swift test --filter TokenBarChartLayoutTests` passed after implementation.
 
 # Next

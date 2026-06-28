@@ -346,6 +346,7 @@ private struct TokenBarChart: View {
 
     @State private var hoveredDay: Date?
     @State private var tooltipAnchor: CGPoint?
+    @State private var tooltipSize: CGSize = .zero
     @State private var isTooltipHovered = false
     @State private var clearHoverTask: Task<Void, Never>?
     @Environment(\.colorScheme) private var colorScheme
@@ -367,7 +368,6 @@ private struct TokenBarChart: View {
     private static let legendRowHeight: CGFloat = 14
     private static let legendVerticalPadding: CGFloat = 4
     private static let legendColumnSpacing: CGFloat = 8
-    private static let tooltipBarGap: CGFloat = 0
     private static let tooltipMinWidth: CGFloat = 90
     private static let tooltipRowsMaxHeight: CGFloat = 56
 
@@ -383,6 +383,14 @@ private struct TokenBarChart: View {
         let date: Date
         let model: String
         let tokens: Int
+    }
+
+    private struct TooltipSizeKey: PreferenceKey {
+        static let defaultValue: CGSize = .zero
+
+        static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+            value = nextValue()
+        }
     }
 
     /// One stacked segment per (day, model) so each bar shows the day total and
@@ -455,14 +463,15 @@ private struct TokenBarChart: View {
     @ViewBuilder
     private var floatingTooltip: some View {
         if let hoveredDay, let items = segmentsByDay[hoveredDay], let tooltipAnchor {
-            let tooltipBarGap = Self.tooltipBarGap
             tooltip(date: hoveredDay, items: items)
-                .alignmentGuide(.leading) { dimensions in
-                    dimensions[HorizontalAlignment.center] - tooltipAnchor.x
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear
+                            .preference(key: TooltipSizeKey.self, value: proxy.size)
+                    }
                 }
-                .alignmentGuide(.top) { dimensions in
-                    dimensions[VerticalAlignment.bottom] - tooltipAnchor.y + tooltipBarGap
-                }
+                .onPreferenceChange(TooltipSizeKey.self) { tooltipSize = $0 }
+                .offset(x: tooltipAnchor.x - tooltipSize.width / 2, y: tooltipAnchor.y - tooltipSize.height)
                 .onContinuousHover { phase in
                     switch phase {
                     case .active:
