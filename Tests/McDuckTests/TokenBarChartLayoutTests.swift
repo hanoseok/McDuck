@@ -12,7 +12,7 @@ struct TokenBarChartLayoutTests {
         #expect(chart.contains(".chartLegend(.hidden)"))
         #expect(chart.contains("private var modelLegend: some View"))
         #expect(chart.contains("private static let legendColumnCount = 2"))
-        #expect(chart.contains("private static let legendMaxRowCount = 4"))
+        #expect(chart.contains("private static let legendMaxRowCount = 3"))
         #expect(chart.contains("private static let legendRowHeight: CGFloat = 14"))
         #expect(chart.contains("private static let legendVerticalPadding: CGFloat = 4"))
         #expect(chart.contains("private var legendVisibleRowCount: Int"))
@@ -63,29 +63,42 @@ struct TokenBarChartLayoutTests {
         #expect(updateHover.contains("hoveredDay = nextDay"))
     }
 
-    @Test("tooltip overlay does not intercept chart hover")
-    func tooltipOverlayAllowsChartHoverToContinue() throws {
+    @Test("tooltip accepts hover so long model lists can scroll")
+    func tooltipAcceptsHoverForScrollableModelLists() throws {
         let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
         let chart = try tokenBarChartSource(in: source)
         let floatingTooltip = try floatingTooltipSource(in: chart)
 
-        #expect(floatingTooltip.contains(".allowsHitTesting(false)"))
+        #expect(chart.contains("@State private var isTooltipHovered = false"))
+        #expect(floatingTooltip.contains(".onContinuousHover"))
+        #expect(floatingTooltip.contains("isTooltipHovered = true"))
+        #expect(floatingTooltip.contains("clearHover()"))
+        #expect(!floatingTooltip.contains(".allowsHitTesting(false)"))
     }
 
-    @Test("tooltip floats above the chart without reserving layout space")
-    func tooltipFloatsAboveChartWithoutReservedLayoutSpace() throws {
+    @Test("tooltip anchors above the hovered bar without reserving layout space")
+    func tooltipAnchorsAboveHoveredBarWithoutReservedLayoutSpace() throws {
         let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
         let chart = try tokenBarChartSource(in: source)
         let body = try bodySource(in: chart)
         let chartBody = try chartBodySource(in: chart)
         let floatingTooltip = try floatingTooltipSource(in: chart)
 
+        #expect(chart.contains("@State private var tooltipAnchor: CGPoint?"))
         #expect(body.contains("chartBody\n                .frame(height: 120)\n                .overlay(alignment: .topLeading)"))
         #expect(!body.contains("tooltipArea"))
         #expect(!chart.contains("tooltipAreaHeight"))
+        #expect(!chart.contains("tooltipFloatingOffset"))
         #expect(floatingTooltip.contains("tooltip(date: hoveredDay, items: items)"))
-        #expect(floatingTooltip.contains(".offset(y: -Self.tooltipFloatingOffset)"))
-        #expect(floatingTooltip.contains(".allowsHitTesting(false)"))
+        #expect(floatingTooltip.contains("let tooltipAnchor"))
+        #expect(floatingTooltip.contains(".alignmentGuide(.leading)"))
+        #expect(floatingTooltip.contains("dimensions[HorizontalAlignment.center] - tooltipAnchor.x"))
+        #expect(floatingTooltip.contains(".alignmentGuide(.top)"))
+        #expect(floatingTooltip.contains("let tooltipBarGap = Self.tooltipBarGap"))
+        #expect(floatingTooltip.contains("dimensions[VerticalAlignment.bottom] - tooltipAnchor.y + tooltipBarGap"))
+        #expect(chart.contains("private func tooltipAnchor(for day: Date, proxy: ChartProxy, geo: GeometryProxy) -> CGPoint?"))
+        #expect(chart.contains("proxy.position(forX: day)"))
+        #expect(chart.contains("proxy.position(forY: totalTokens)"))
         #expect(!chartBody.contains("tooltip(date: hoveredDay, items: items)"))
     }
 
@@ -97,6 +110,8 @@ struct TokenBarChartLayoutTests {
 
         #expect(!chart.contains("hoverLocation"))
         #expect(!updateHover.contains("location ="))
+        #expect(updateHover.contains("let nextAnchor = nextDay.flatMap"))
+        #expect(updateHover.contains("tooltipAnchor = nextAnchor"))
     }
 
     private func mcDuckPopoverURL() -> URL {
