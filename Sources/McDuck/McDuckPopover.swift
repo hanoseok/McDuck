@@ -367,7 +367,8 @@ private struct TokenBarChart: View {
     private static let legendRowHeight: CGFloat = 14
     private static let legendVerticalPadding: CGFloat = 4
     private static let legendColumnSpacing: CGFloat = 8
-    private static let tooltipBarGap: CGFloat = 8
+    private static let tooltipBarGap: CGFloat = 0
+    private static let tooltipMinWidth: CGFloat = 90
     private static let tooltipRowsMaxHeight: CGFloat = 56
 
     /// A fully opaque, fixed RGB color (not a system/dynamic color). System
@@ -640,7 +641,8 @@ private struct TokenBarChart: View {
             .frame(maxHeight: Self.tooltipRowsMaxHeight)
         }
         .padding(8)
-        .frame(minWidth: 150, alignment: .leading)
+        .frame(minWidth: Self.tooltipMinWidth, alignment: .leading)
+        .fixedSize(horizontal: true, vertical: false)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(tooltipBackground)

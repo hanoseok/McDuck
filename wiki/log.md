@@ -1,6 +1,7 @@
 # McDuck Wiki Update Log
 
 ## 2026-06-28
+* **UX adjustment**: Reduced the issue #55 chart tooltip default width and aligned its bottom edge directly to the hovered bar top.
 * **UX adjustment**: Capped the issue #55 model legend at three two-column rows and anchored the chart tooltip above the hovered bar while allowing tooltip hover/scroll.
 * **UX adjustment**: Changed the issue #55 model legend to a two-column adaptive vertical grid that grows to four rows, and made the chart tooltip float above the graph without reserving layout space.
 
