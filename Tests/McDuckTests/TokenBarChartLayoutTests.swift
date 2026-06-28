@@ -49,6 +49,18 @@ struct TokenBarChartLayoutTests {
         #expect(tooltip.contains(".frame(maxHeight:"))
     }
 
+    @Test("tooltip uses a compact base width but can grow to fit long model names")
+    func tooltipUsesCompactBaseWidthAndIntrinsicGrowth() throws {
+        let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
+        let chart = try tokenBarChartSource(in: source)
+        let tooltip = try tooltipSource(in: chart)
+
+        #expect(chart.contains("private static let tooltipMinWidth: CGFloat = 90"))
+        #expect(tooltip.contains(".frame(minWidth: Self.tooltipMinWidth, alignment: .leading)"))
+        #expect(tooltip.contains(".fixedSize(horizontal: true, vertical: false)"))
+        #expect(!tooltip.contains(".frame(minWidth: 150"))
+    }
+
     @Test("hover changes tooltip state only when the hovered day changes")
     func hoverUpdatesOnlyWhenHoveredDayChanges() throws {
         let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
@@ -94,6 +106,7 @@ struct TokenBarChartLayoutTests {
         #expect(floatingTooltip.contains(".alignmentGuide(.leading)"))
         #expect(floatingTooltip.contains("dimensions[HorizontalAlignment.center] - tooltipAnchor.x"))
         #expect(floatingTooltip.contains(".alignmentGuide(.top)"))
+        #expect(chart.contains("private static let tooltipBarGap: CGFloat = 0"))
         #expect(floatingTooltip.contains("let tooltipBarGap = Self.tooltipBarGap"))
         #expect(floatingTooltip.contains("dimensions[VerticalAlignment.bottom] - tooltipAnchor.y + tooltipBarGap"))
         #expect(chart.contains("private func tooltipAnchor(for day: Date, proxy: ChartProxy, geo: GeometryProxy) -> CGPoint?"))
