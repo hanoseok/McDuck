@@ -345,6 +345,9 @@ private struct TokenBarChart: View {
     let days: [UsageDay]
 
     @State private var hoveredDay: Date?
+    @State private var tooltipAnchor: CGPoint?
+    @State private var isTooltipHovered = false
+    @State private var clearHoverTask: Task<Void, Never>?
     @Environment(\.colorScheme) private var colorScheme
 
     private static let modelPalette: [Color] = [
@@ -360,11 +363,11 @@ private struct TokenBarChart: View {
         .yellow
     ]
     private static let legendColumnCount = 2
-    private static let legendMaxRowCount = 4
+    private static let legendMaxRowCount = 3
     private static let legendRowHeight: CGFloat = 14
     private static let legendVerticalPadding: CGFloat = 4
     private static let legendColumnSpacing: CGFloat = 8
-    private static let tooltipFloatingOffset: CGFloat = 96
+    private static let tooltipBarGap: CGFloat = 8
     private static let tooltipRowsMaxHeight: CGFloat = 56
 
     /// A fully opaque, fixed RGB color (not a system/dynamic color). System
@@ -450,10 +453,25 @@ private struct TokenBarChart: View {
 
     @ViewBuilder
     private var floatingTooltip: some View {
-        if let hoveredDay, let items = segmentsByDay[hoveredDay] {
+        if let hoveredDay, let items = segmentsByDay[hoveredDay], let tooltipAnchor {
+            let tooltipBarGap = Self.tooltipBarGap
             tooltip(date: hoveredDay, items: items)
-                .offset(y: -Self.tooltipFloatingOffset)
-                .allowsHitTesting(false)
+                .alignmentGuide(.leading) { dimensions in
+                    dimensions[HorizontalAlignment.center] - tooltipAnchor.x
+                }
+                .alignmentGuide(.top) { dimensions in
+                    dimensions[VerticalAlignment.bottom] - tooltipAnchor.y + tooltipBarGap
+                }
+                .onContinuousHover { phase in
+                    switch phase {
+                    case .active:
+                        isTooltipHovered = true
+                        clearHoverTask?.cancel()
+                        clearHoverTask = nil
+                    case .ended:
+                        clearHover()
+                    }
+                }
                 .zIndex(1)
         }
     }
@@ -505,7 +523,7 @@ private struct TokenBarChart: View {
                         case .active(let location):
                             updateHover(at: location, proxy: proxy, geo: geo)
                         case .ended:
-                            hoveredDay = nil
+                            clearHoverAfterTooltipOpportunity()
                         }
                     }
             }
@@ -537,8 +555,30 @@ private struct TokenBarChart: View {
 
     private func updateHover(at location: CGPoint, proxy: ChartProxy, geo: GeometryProxy) {
         let nextDay = day(at: location, proxy: proxy, geo: geo)
+        let nextAnchor = nextDay.flatMap { tooltipAnchor(for: $0, proxy: proxy, geo: geo) }
         guard nextDay != hoveredDay else { return }
+        clearHoverTask?.cancel()
+        clearHoverTask = nil
+        isTooltipHovered = false
         hoveredDay = nextDay
+        tooltipAnchor = nextAnchor
+    }
+
+    private func clearHoverAfterTooltipOpportunity() {
+        clearHoverTask?.cancel()
+        clearHoverTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 80_000_000)
+            guard !Task.isCancelled, !isTooltipHovered else { return }
+            clearHover()
+        }
+    }
+
+    private func clearHover() {
+        clearHoverTask?.cancel()
+        clearHoverTask = nil
+        hoveredDay = nil
+        tooltipAnchor = nil
+        isTooltipHovered = false
     }
 
     private func day(at location: CGPoint, proxy: ChartProxy, geo: GeometryProxy) -> Date? {
@@ -551,6 +591,22 @@ private struct TokenBarChart: View {
         }
         let startOfDay = Calendar(identifier: .gregorian).startOfDay(for: date)
         return segmentsByDay[startOfDay] != nil ? startOfDay : nil
+    }
+
+    private func tooltipAnchor(for day: Date, proxy: ChartProxy, geo: GeometryProxy) -> CGPoint? {
+        guard let plotFrame = proxy.plotFrame,
+              let x = proxy.position(forX: day),
+              let items = segmentsByDay[day] else {
+            return nil
+        }
+
+        let totalTokens = items.reduce(0) { $0 + $1.tokens }
+        guard let y = proxy.position(forY: totalTokens) else {
+            return nil
+        }
+
+        let plotOrigin = geo[plotFrame].origin
+        return CGPoint(x: plotOrigin.x + x, y: plotOrigin.y + y)
     }
 
     private func modelColor(for model: String) -> Color {

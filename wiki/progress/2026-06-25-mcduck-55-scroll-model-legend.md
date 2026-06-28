@@ -23,6 +23,8 @@ Issue #55 fixes the popover token chart when `ccusage --breakdown` returns many 
 * Follow-up: changed the top model legend from horizontal scrolling back to a bounded two-row vertical scroller.
 * Follow-up: changed the top model legend to an adaptive two-column vertical grid that grows from one to four rows before scrolling.
 * Follow-up: returned the chart tooltip to a floating overlay above the chart so it does not reserve layout space.
+* Follow-up: capped the adaptive two-column model legend at three visible rows before scrolling.
+* Follow-up: anchored the chart tooltip directly above the hovered bar and allowed the tooltip itself to receive hover events so long model lists can scroll.
 
 # Evidence
 
@@ -38,6 +40,7 @@ Issue #55 fixes the popover token chart when `ccusage --breakdown` returns many 
   * Red: `swift test --filter TokenBarChartLayoutTests.tokenChartUsesTwoRowVerticalModelLegend` failed while the legend still used horizontal scrolling.
   * Red: `swift test --filter TokenBarChartLayoutTests.tokenChartUsesAdaptiveTwoColumnVerticalModelLegend` failed while the legend still used a fixed two-row vertical stack.
   * Red: `swift test --filter TokenBarChartLayoutTests.tooltipFloatsAboveChartWithoutReservedLayoutSpace` failed while the tooltip still used a reserved fixed area above the chart.
+  * Red: `swift test --filter TokenBarChartLayoutTests` failed while the legend still capped at four rows and the tooltip still used a fixed offset with hit testing disabled.
   * Green: `swift test --filter TokenBarChartLayoutTests` passed after implementation.
 
 # Next
