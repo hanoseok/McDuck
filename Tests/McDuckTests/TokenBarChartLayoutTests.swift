@@ -88,8 +88,8 @@ struct TokenBarChartLayoutTests {
         #expect(!floatingTooltip.contains(".allowsHitTesting(false)"))
     }
 
-    @Test("tooltip anchors above the hovered bar without reserving layout space")
-    func tooltipAnchorsAboveHoveredBarWithoutReservedLayoutSpace() throws {
+    @Test("tooltip is directly positioned above the hovered bar without reserving layout space")
+    func tooltipIsDirectlyPositionedAboveHoveredBarWithoutReservedLayoutSpace() throws {
         let source = try String(contentsOf: mcDuckPopoverURL(), encoding: .utf8)
         let chart = try tokenBarChartSource(in: source)
         let body = try bodySource(in: chart)
@@ -97,18 +97,20 @@ struct TokenBarChartLayoutTests {
         let floatingTooltip = try floatingTooltipSource(in: chart)
 
         #expect(chart.contains("@State private var tooltipAnchor: CGPoint?"))
+        #expect(chart.contains("@State private var tooltipSize: CGSize = .zero"))
+        #expect(chart.contains("private struct TooltipSizeKey: PreferenceKey"))
         #expect(body.contains("chartBody\n                .frame(height: 120)\n                .overlay(alignment: .topLeading)"))
         #expect(!body.contains("tooltipArea"))
         #expect(!chart.contains("tooltipAreaHeight"))
         #expect(!chart.contains("tooltipFloatingOffset"))
+        #expect(!chart.contains("tooltipBarGap"))
         #expect(floatingTooltip.contains("tooltip(date: hoveredDay, items: items)"))
         #expect(floatingTooltip.contains("let tooltipAnchor"))
-        #expect(floatingTooltip.contains(".alignmentGuide(.leading)"))
-        #expect(floatingTooltip.contains("dimensions[HorizontalAlignment.center] - tooltipAnchor.x"))
-        #expect(floatingTooltip.contains(".alignmentGuide(.top)"))
-        #expect(chart.contains("private static let tooltipBarGap: CGFloat = 0"))
-        #expect(floatingTooltip.contains("let tooltipBarGap = Self.tooltipBarGap"))
-        #expect(floatingTooltip.contains("dimensions[VerticalAlignment.bottom] - tooltipAnchor.y + tooltipBarGap"))
+        #expect(floatingTooltip.contains(".offset(x: tooltipAnchor.x - tooltipSize.width / 2, y: tooltipAnchor.y - tooltipSize.height)"))
+        #expect(floatingTooltip.contains(".preference(key: TooltipSizeKey.self, value: proxy.size)"))
+        #expect(floatingTooltip.contains(".onPreferenceChange(TooltipSizeKey.self)"))
+        #expect(!floatingTooltip.contains(".alignmentGuide(.leading)"))
+        #expect(!floatingTooltip.contains(".alignmentGuide(.top)"))
         #expect(chart.contains("private func tooltipAnchor(for day: Date, proxy: ChartProxy, geo: GeometryProxy) -> CGPoint?"))
         #expect(chart.contains("proxy.position(forX: day)"))
         #expect(chart.contains("proxy.position(forY: totalTokens)"))
